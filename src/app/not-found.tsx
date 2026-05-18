@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { getTheme } from "@/lib/day-theme";
 
-// 404 · day → Variant404A (大数字 + 孤独玫瑰), night → Variant404B (三月相 fade + 四〇四)
-// 字 day+night 统一 "迷路了" (老婆 260517 0146 final pick).
-// 替老 not-found.tsx (Akira portrait, canon-only 个人 data — V2 不 ship).
+// 404 · day → 大数字 + 孤独玫瑰, night → 三月相 fade + 四〇四. 字统一 "迷路了".
 
 const IVORY = "#ebdfd4";
 const GOTHIC = "#0c0c0c";
