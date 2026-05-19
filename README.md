@@ -49,7 +49,7 @@ schema架构可参考 → [wiki / 他的脑回路](链接)
 - 数据层在 `src/lib/stores/` — 所有 CRUD 走 `StoreContract<T>` 接口
 - LLM 调用在 `src/lib/llm-client.ts` — OpenAI chat completion 格式
 - 系统提示词在 `src/lib/system-prompt.ts` — `{{user}}` `{{char}}` 模板变量
-- 视觉主题在 `src/app/globals.css` @theme — Mucha 暗金美术风格
+- 视觉主题在 `src/app/globals.css` @theme — Mucha
 - 人物设定在 /settings 页面改（名字、头像、prompt）
 - 所有 module 在 `src/app/room/` 下各自独立
 
