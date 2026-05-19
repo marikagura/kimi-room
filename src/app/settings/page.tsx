@@ -8,7 +8,7 @@
 // Phase 3 (later): adapter picker real wire (Notion / Supabase form), 6 finance
 //          category editor, NSFW level, 21+ self-attest
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { KIMI_MODE } from "@/lib/kimi-mode";
 import { APP_TITLE_DEFAULT, getAppTitle, setAppTitle } from "@/lib/app-title";
@@ -26,7 +26,7 @@ import {
   setOtherPortrait,
   setSelfPortrait,
 } from "@/lib/portrait-store";
-import { getAdapter } from "@/lib/stores";
+import { isDemoOn, removeDemo, seedDemo } from "@/lib/demo-seed";
 import {
   CHAR_NAME_DEFAULT,
   getCharName,
@@ -70,7 +70,8 @@ export default function SettingsPage() {
   const [meds, setMeds] = useState<MedButton[]>([]);
   const [medDraft, setMedDraft] = useState("");
   const [toast, setToast] = useState<Toast>(null);
-  const importInput = useRef<HTMLInputElement>(null);
+  const [demoOn, setDemoOn] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
 
   useEffect(() => {
     setTitle(getAppTitle());
@@ -78,6 +79,7 @@ export default function SettingsPage() {
     setUserNameState(getUserName());
     setLLM(getLLMConfig());
     setMeds(loadMedButtons());
+    setDemoOn(isDemoOn());
     refreshPortraits();
   }, []);
 
@@ -150,47 +152,22 @@ export default function SettingsPage() {
     flash(`${target} portrait removed`);
   }
 
-  async function onExport() {
+  async function onToggleDemo() {
+    setDemoBusy(true);
     try {
-      const json = await getAdapter().exportJSON();
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `kimi-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      flash("exported");
+      if (demoOn) {
+        const r = await removeDemo();
+        setDemoOn(false);
+        flash(`demo removed · ${r.removed} entries`);
+      } else {
+        const r = await seedDemo();
+        setDemoOn(true);
+        flash(`demo seeded · ${r.added} entries`);
+      }
     } catch (err) {
-      flash(`export failed: ${(err as Error).message}`, "err");
-    }
-  }
-
-  async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const r = await getAdapter().importJSON(text);
-      flash(`imported · ${r.added} entries`);
-    } catch (err) {
-      flash(`import failed: ${(err as Error).message}`, "err");
-    }
-  }
-
-  async function onEmpty() {
-    if (
-      !confirm(
-        "Empty all local data? 此操作清空 IDB · 所有 keepsakes / memory / calendar / 等 删. 不影响 settings.",
-      )
-    )
-      return;
-    try {
-      await getAdapter().empty();
-      flash("emptied");
-    } catch (err) {
-      flash(`empty failed: ${(err as Error).message}`, "err");
+      flash(`demo toggle failed · ${(err as Error).message}`, "err");
+    } finally {
+      setDemoBusy(false);
     }
   }
 
@@ -392,32 +369,37 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ── Data ─────────────────────────────────────── */}
+      {/* ── Demo seed data ──────────────────────────────── */}
       <section className="mt-24 max-w-md mx-auto flex flex-col gap-4">
-        <h2 className={labelCls}>data · export / import / empty</h2>
+        <h2 className={labelCls}>示例数据 · demo</h2>
         <p className={helpCls}>
-          local IDB store (taste / memo / calendar / memory / 等). export JSON 跨
-          device migrate / backup. import 增量合并 (id 冲突 overwrite). empty
-          清空 IDB 不影响 settings.
+          填一份示例 keepsake / memory / book / calendar / 对话 / sleep 进 IDB
+          看看 6 模块长啥样. 关掉就清掉示例 · 你自己加的数据不动.
         </p>
-        <div className="flex flex-wrap gap-3">
-          <button type="button" onClick={onExport} className={buttonCls}>
-            export JSON
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={onToggleDemo}
+            disabled={demoBusy}
+            className={buttonCls}
+          >
+            {demoOn ? "关闭示例" : "塞入示例"}
           </button>
-          <label className={`${buttonCls} cursor-pointer`}>
-            <input
-              ref={importInput}
-              type="file"
-              accept="application/json"
-              onChange={onImport}
-              className="hidden"
-            />
-            import JSON
-          </label>
-          <button type="button" onClick={onEmpty} className={buttonCls}>
-            empty all
-          </button>
+          <span className="text-[10px] tracking-widest uppercase text-muted-grey">
+            {demoOn ? "ON" : "OFF"}
+          </span>
         </div>
+      </section>
+
+      {/* ── Data backup ─────────────────────────────────── */}
+      <section className="mt-24 max-w-md mx-auto flex flex-col gap-4">
+        <h2 className={labelCls}>backup</h2>
+        <p className={helpCls}>
+          全量 export / import / empty 在 advanced 区:{" "}
+          <Link href="/backstage/ops" className="underline-offset-4 hover:underline">
+            /backstage/ops
+          </Link>
+        </p>
       </section>
 
       {/* ── Adapter picker (stub) ─────────────────────── */}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackupClient } from "@/components/backstage/BackupClient";
 
 // V2 ops dashboard framework · 0 data · 用户 fork 后 fill own handler.
 // canon V1 这 page (469 line) 跑 Prisma queries · push/dream/intel/states/errors
@@ -54,6 +55,10 @@ export default function OpsPage() {
           ← backstage
         </Link>
       </div>
+      <div className="mt-8">
+        <BackupClient />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
         {PLACEHOLDER_SECTIONS.map((s) => (
           <section
