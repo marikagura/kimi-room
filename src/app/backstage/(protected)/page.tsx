@@ -17,7 +17,18 @@ export default function BackstagePage() {
             /settings
           </Link>
           <span className="text-[10px] text-muted-grey/60 ml-3">
-            system prompt · memory injection
+            LLM key · 头像 · 名字 · demo · meds preset
+          </span>
+        </li>
+        <li>
+          <Link
+            href="/backstage/character"
+            className="text-muted-gold hover:text-accent-warm tracking-[0.2em] uppercase"
+          >
+            /character
+          </Link>
+          <span className="text-[10px] text-muted-grey/60 ml-3">
+            system prompt · memory injection · 人设 voice
           </span>
         </li>
         <li>

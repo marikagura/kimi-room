@@ -56,7 +56,7 @@ export function GardenAddForm({ onAdded }: { onAdded: () => void }) {
   async function autoParseScreenshot() {
     if (!imgPreview || autoBusy) return;
     if (!isLLMConfigured()) {
-      setErr("LLM 未配 · settings 填 vision-capable endpoint + key");
+      setErr("LLM 未配 · /backstage/settings 填 vision-capable endpoint + key");
       return;
     }
     setAutoBusy(true);

@@ -1242,7 +1242,7 @@ function CellEditor({
 
   async function askKimi() {
     if (!isLLMConfigured()) {
-      setKimiErr("LLM 没填 · 去 /settings");
+      setKimiErr("LLM 没填 · 去 /backstage/settings");
       setKimiComment(null);
       return;
     }

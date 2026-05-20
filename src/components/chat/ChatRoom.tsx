@@ -151,7 +151,7 @@ export function ChatRoom() {
   } | null>(null);
 
   // Load sys-prompt + memory stats when drawer opens (re-fetch each time
-  // so user sees fresh count after editing /backstage/settings + returning).
+  // so user sees fresh count after editing /backstage/character + returning).
   useEffect(() => {
     if (!showBgPicker) return;
     void getSystemContextStats().then(setSysStats);
@@ -294,7 +294,7 @@ export function ChatRoom() {
             ? {
                 ...m,
                 content:
-                  "(LLM API key 没填 · 进 /settings 填 endpoint + key 才能 chat)",
+                  "(LLM API key 没填 · 进 /backstage/settings 填 endpoint + key 才能 chat)",
               }
             : m,
         ),
@@ -730,7 +730,7 @@ export function ChatRoom() {
             ))}
           </div>
 
-          {/* system context · read-only · edit at /backstage/settings */}
+          {/* system context · read-only · edit at /backstage/character */}
           <div
             style={{
               fontSize: 9,
@@ -743,7 +743,7 @@ export function ChatRoom() {
             system context
           </div>
           <Link
-            href="/backstage/settings"
+            href="/backstage/character"
             style={{
               display: "block",
               padding: "8px 10px",
@@ -766,7 +766,7 @@ export function ChatRoom() {
                     : "memory 不注入"}
                 </div>
                 <div style={{ marginTop: 4, color: p.inkMute, fontSize: 9, letterSpacing: 1 }}>
-                  → /backstage/settings
+                  → /backstage/character
                 </div>
               </>
             ) : (

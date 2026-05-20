@@ -64,7 +64,7 @@ export function CategoryClient({
     if (foxBusyId) return;
     if (entry.aiReflection && !force) return;
     if (!isLLMConfigured()) {
-      alert("LLM 未配 · settings 填 endpoint + key");
+      alert("LLM 未配 · /backstage/settings 填 endpoint + key");
       return;
     }
     setFoxBusyId(entry.id);
@@ -403,7 +403,7 @@ export function CategoryClient({
                                   fontStyle: "italic",
                                 }}
                               >
-                                · LLM 未配 · settings 填 endpoint + key
+                                · LLM 未配 · /backstage/settings 填 endpoint + key
                               </div>
                             )}
                           </div>

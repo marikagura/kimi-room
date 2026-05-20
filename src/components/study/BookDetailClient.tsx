@@ -134,7 +134,7 @@ export function BookDetailClient({
     if (busy || !view || !currentPage) return;
     if (reflection && !force) return; // already have one · use retry to force
     if (!isLLMConfigured()) {
-      alert("LLM 未配 · settings 填 endpoint + key");
+      alert("LLM 未配 · /backstage/settings 填 endpoint + key");
       return;
     }
     setBusy(true);
@@ -462,7 +462,7 @@ export function BookDetailClient({
                     fontStyle: "italic",
                   }}
                 >
-                  · LLM 未配 · settings 填 endpoint + key
+                  · LLM 未配 · /backstage/settings 填 endpoint + key
                 </div>
               )}
             </div>

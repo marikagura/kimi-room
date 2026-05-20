@@ -46,7 +46,7 @@ export function SetupBanner({ accent }: { accent: string }) {
 
   return (
     <Link
-      href="/settings"
+      href="/backstage/settings"
       style={{
         display: "block",
         marginTop: 14,
@@ -73,7 +73,7 @@ export function SetupBanner({ accent }: { accent: string }) {
       <div style={{ fontSize: 12, lineHeight: 1.6, opacity: 0.85 }}>
         还差 · {missing.join(" · ")}
         <span style={{ marginLeft: 8, color: accent, fontStyle: "italic" }}>
-          → /settings
+          → /backstage/settings
         </span>
       </div>
       <div

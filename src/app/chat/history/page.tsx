@@ -78,7 +78,7 @@ export default function ChatHistoryPage() {
 
   async function onSummarize(session: ChatEntry) {
     if (!isLLMConfigured()) {
-      flash("没填 LLM key · 去 /settings", "err");
+      flash("没填 LLM key · 去 /backstage/settings", "err");
       return;
     }
     setBusyId(session.id);
