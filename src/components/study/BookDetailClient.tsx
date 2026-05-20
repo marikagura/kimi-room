@@ -6,7 +6,8 @@ import type { KimiPalette } from "@/lib/kimi-palettes";
 import { bookStore } from "@/lib/stores";
 import type { BookEntry } from "@/lib/stores/types";
 import { BOOKS as STATIC_SEED } from "@/lib/reading-data";
-import { isLLMConfigured, llmGenerate } from "@/lib/llm-client";
+import { friendlyLLMError, isLLMConfigured, llmGenerate } from "@/lib/llm-client";
+import { buildCharacterContext } from "@/lib/system-prompt";
 import { getCharName, tmpl } from "@/lib/template";
 
 // V2 book detail · IDB-backed · canon long-form reading + pagination + LLM
@@ -139,8 +140,10 @@ export function BookDetailClient({
     setBusy(true);
     try {
       const cn = getCharName();
-      const system = tmpl(
-        "你是 {{char}} (用户的 AI companion). 用户跟你 一起 在读这本书. 你刚读完这一页, 用 200-400 字, 第一人称, 你的视角/性格, 写一段读后感. 不客观总结 · 不列要点 · 不 emoji · 不 markdown header · 一段 prose.",
+      // Uses /backstage/settings SP + memory injection as base · adds
+      // book-reading-together specific instruction on top.
+      const system = await buildCharacterContext(
+        "你跟用户在一起读这本书. 你刚读完这一页, 用 200-400 字, 第一人称, 你的视角/性格, 写一段读后感. 不客观总结 · 不列要点 · 不 emoji · 不 markdown header · 一段 prose.",
       );
       const prompt = `[书名] ${view.title}\n${view.author ? `[作者] ${view.author}\n` : ""}[第 ${pageIdx + 1} / ${totalPages} 页 内容]\n${currentPage}\n\n请用 ${cn} 的视角写一段读后感.`;
       const text = await llmGenerate(prompt, system, {
@@ -160,7 +163,8 @@ export function BookDetailClient({
         }
       }
     } catch (e) {
-      alert(`LLM err · ${(e as Error).message}`);
+      const fe = friendlyLLMError(e);
+      alert(`${fe.title} · ${fe.hint}`);
     } finally {
       setBusy(false);
     }

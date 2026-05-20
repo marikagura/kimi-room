@@ -73,6 +73,24 @@ export async function buildSystemMessage(): Promise<SystemMessageBundle> {
   return { text, spChars, memCount, memChars, memTotalActive };
 }
 
+// Helper for any "AI speaks in character" LLM call (chat / calendar fox /
+// study 共读 / etc.). Returns SP (template-substituted) + memory injection
+// + optional per-call instruction. Use as system message.
+//
+// Pattern:
+//   const sys = await buildCharacterContext("你看看 {{user}} 今天的日历, 给一句话评价...");
+//   const text = await llmGenerate(prompt, sys, opts);
+export async function buildCharacterContext(
+  extraInstruction?: string,
+): Promise<string> {
+  const sys = await buildSystemMessage();
+  if (!extraInstruction) return sys.text;
+  const trimmed = extraInstruction.trim();
+  if (!trimmed) return sys.text;
+  if (!sys.text) return trimmed;
+  return `${sys.text}\n\n---\n\n${trimmed}`;
+}
+
 // Lightweight stats for status display (drawer) — same numbers as
 // buildSystemMessage but without producing the full text payload.
 export async function getSystemContextStats(): Promise<{

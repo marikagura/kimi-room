@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { KimiPalette } from "@/lib/kimi-palettes";
 import { pieceStore } from "@/lib/stores";
 import type { PieceEntry } from "@/lib/stores/types";
-import { isLLMConfigured, llmGenerate } from "@/lib/llm-client";
+import { friendlyLLMError, isLLMConfigured, llmGenerate } from "@/lib/llm-client";
+import { buildCharacterContext } from "@/lib/system-prompt";
 import { getCharName, tmpl } from "@/lib/template";
 
 // User-named study category · entries 在 pieceStore (tags[0] = category name).
@@ -69,8 +70,10 @@ export function CategoryClient({
     setFoxBusyId(entry.id);
     try {
       const cn = getCharName();
-      const system = tmpl(
-        "你是 {{char}} (用户的 AI companion). 用户跟你 一起 在读这条 entry. 你刚读完, 用 200-400 字, 第一人称, 你的视角/性格, 写一段读后感. 不客观总结 · 不列要点 · 不 emoji · 不 markdown header · 一段 prose.",
+      // Uses /backstage/settings SP + memory injection as base · adds
+      // entry-reading-together specific instruction on top.
+      const system = await buildCharacterContext(
+        "你跟用户在一起读这条 entry. 你刚读完, 用 200-400 字, 第一人称, 你的视角/性格, 写一段读后感. 不客观总结 · 不列要点 · 不 emoji · 不 markdown header · 一段 prose.",
       );
       const prompt = `[标题] ${entry.title || "(无)"}\n[分类] ${category}\n[内容]\n${entry.body.slice(0, 4000)}\n\n请用 ${cn} 的视角写一段读后感.`;
       const text = await llmGenerate(prompt, system, {
@@ -82,7 +85,8 @@ export function CategoryClient({
         await reload();
       }
     } catch (e) {
-      alert(`LLM err · ${(e as Error).message}`);
+      const fe = friendlyLLMError(e);
+      alert(`${fe.title} · ${fe.hint}`);
     } finally {
       setFoxBusyId(null);
     }

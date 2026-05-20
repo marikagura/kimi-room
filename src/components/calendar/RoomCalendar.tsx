@@ -35,6 +35,12 @@ import {
   storeIsEmpty,
   ymd,
 } from "@/lib/calendar-utils";
+import {
+  friendlyLLMError,
+  isLLMConfigured,
+  llmGenerate,
+} from "@/lib/llm-client";
+import { buildCharacterContext } from "@/lib/system-prompt";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
@@ -1228,6 +1234,61 @@ function CellEditor({
   const [event, setEvent] = useState(data.event ?? "");
   const [note, setNote] = useState(data.note ?? "");
 
+  // ── ✦ kimi 看看今天 · LLM comment on the day · uses /backstage/settings SP
+  // + memory injection · sees events + memo + flow.
+  const [kimiBusy, setKimiBusy] = useState(false);
+  const [kimiComment, setKimiComment] = useState<string | null>(null);
+  const [kimiErr, setKimiErr] = useState<string | null>(null);
+
+  async function askKimi() {
+    if (!isLLMConfigured()) {
+      setKimiErr("LLM 没填 · 去 /settings");
+      setKimiComment(null);
+      return;
+    }
+    setKimiBusy(true);
+    setKimiErr(null);
+    setKimiComment(null);
+    try {
+      const events: string[] = [];
+      if (event.trim()) events.push(`memo: ${event.trim()}`);
+      if (mirror.length > 0) {
+        for (const m of mirror) {
+          events.push(`${m.time} ${m.title}${m.location ? ` @ ${m.location}` : ""}`);
+        }
+      }
+      const ctx: string[] = [`日期 ${date}`];
+      if (events.length > 0) ctx.push(`事件:\n${events.join("\n")}`);
+      else ctx.push("(今天没事件)");
+      if (flow) {
+        const flowLabel = { 1: "轻", 2: "中", 3: "重" }[flow] ?? "";
+        ctx.push(`例假流量: ${flowLabel}`);
+      }
+      if (meds.trim()) ctx.push(`药: ${meds.trim()}`);
+      if (note.trim()) ctx.push(`备忘: ${note.trim()}`);
+      const prompt = ctx.join("\n\n");
+
+      const sys = await buildCharacterContext(
+        "你在看 {{user}} 的某一天日历. 用你的人设 voice · 3-5 句中文 · ≤200 字 · 给一点观察 / 评价 / 提醒 / 体贴 · 不要列清单 · 不要 'as an AI'.",
+      );
+      const text = await llmGenerate(prompt, sys, {
+        temperature: 0.7,
+        maxTokens: 400,
+      });
+      const trimmed = text.trim();
+      if (!trimmed) {
+        setKimiErr("LLM 返回空");
+        return;
+      }
+      setKimiComment(trimmed);
+    } catch (e) {
+      const fe = friendlyLLMError(e);
+      setKimiErr(`${fe.title} · ${fe.hint}`);
+    } finally {
+      setKimiBusy(false);
+    }
+  }
+
   function cycleStandard(key: string) {
     setMedStages((prev) => {
       const next = new Map(prev);
@@ -1540,6 +1601,59 @@ function CellEditor({
             rows={2}
             style={{ ...inputStyle(p), resize: "vertical" as const, minHeight: 56 }}
           />
+        </Section>
+
+        <Section label="kimi 看看今天">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <button
+              type="button"
+              onClick={askKimi}
+              disabled={kimiBusy}
+              style={{
+                alignSelf: "flex-start",
+                fontSize: 11,
+                letterSpacing: 2,
+                padding: "6px 14px",
+                border: `0.6px solid ${p.gold}`,
+                background: `${p.gold}14`,
+                color: p.gold,
+                cursor: kimiBusy ? "wait" : "pointer",
+                fontFamily: "inherit",
+                borderRadius: 4,
+                opacity: kimiBusy ? 0.5 : 1,
+              }}
+            >
+              {kimiBusy ? "..." : "✦ ask kimi"}
+            </button>
+            {kimiComment && (
+              <div
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.7,
+                  color: p.inkSoft,
+                  background: `${p.gold}08`,
+                  border: `0.4px solid ${p.gold}33`,
+                  borderRadius: 4,
+                  padding: "10px 12px",
+                  whiteSpace: "pre-wrap",
+                  fontStyle: "italic",
+                }}
+              >
+                {kimiComment}
+              </div>
+            )}
+            {kimiErr && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#e87878",
+                  fontStyle: "italic",
+                }}
+              >
+                {kimiErr}
+              </div>
+            )}
+          </div>
         </Section>
 
         <div
