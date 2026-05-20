@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SetupBanner } from "@/components/SetupBanner";
 import { DualAvatarsClient } from "@/components/mucha/DualAvatarsClient";
 import { MuchaArch } from "@/components/mucha/MuchaArch";
 import { MuchaVine } from "@/components/mucha/MuchaVine";
@@ -100,9 +99,6 @@ export default async function RoomPage({
       </div>
 
       <div className="relative max-w-md mx-auto w-full pt-14 pb-24 px-4">
-        {/* setup banner · 配齐 LLM + 头像 后自动隐藏 · /settings 引流 */}
-        <SetupBanner accent={p.accent} />
-
         {/* framed section — medallion + moon + vine + grid 都在 arch 里面.
             secondary nav 在 framed 外, 不被 arch 包. */}
         <div style={{ position: "relative" }}>
