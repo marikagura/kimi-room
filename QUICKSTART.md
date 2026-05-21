@@ -1,8 +1,5 @@
 # kimi-room · 5 分钟跑起来
 
-![stars](https://img.shields.io/github/stars/marikagura/kimi-room?style=flat-square&label=stars&color=b13a5a)
-![forks](https://img.shields.io/github/forks/marikagura/kimi-room?style=flat-square&label=forks&color=b13a5a)
-![last commit](https://img.shields.io/github/last-commit/marikagura/kimi-room?style=flat-square&label=last%20commit&color=b13a5a)
 ![license](https://img.shields.io/badge/license-AGPL%20v3-b13a5a?style=flat-square)
 ![pwa](https://img.shields.io/badge/pwa-ready-b13a5a?style=flat-square)
 ![status](https://img.shields.io/badge/status-attending-b13a5a?style=flat-square)
