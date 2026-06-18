@@ -10,6 +10,8 @@ import { MoonPhaseSvg } from "@/components/MoonPhaseSvg";
 import { RoseBloomDial } from "@/components/RoseBloomDial";
 import { getTheme, ROSE_GOTHIC_DAY } from "@/lib/day-theme";
 import { ThemeToggleLink } from "@/components/ThemeToggle";
+import { cookies } from "next/headers";
+import { resolveRoom, ROOM_LAYOUT_COOKIE, ROMAN } from "@/lib/room-blocks";
 
 // 强制每次访问拿最新月相 (server-rendered 用当下 date — 不要 build time 静态化)
 export const dynamic = "force-dynamic";
@@ -29,17 +31,10 @@ const DAY_PALETTE = {
   hair: ROSE_GOTHIC_DAY.hair,
 } as const;
 
-// V2 owner 0519: Module I 'Backstage' → 'Heartbeat' (canon name 同 score room).
-// Backstage URL 还在 (`/backstage` direct access) · Settings 加 toggle "show
-// backstage tile" default off · 高级用户 opt-in 后 landing 加 Backstage 第 7 tile.
-const MODULES = [
-  { n: "I", href: "/room/heartbeat", name: "Heartbeat", sub: "& PULSE" },
-  { n: "II", href: "/room/keepsakes", name: "Keepsakes", sub: "& POSTCARDS" },
-  { n: "III", href: "/room/study", name: "Study", sub: "& READING" },
-  { n: "IV", href: "/room/calendar", name: "Calendar", sub: "& WELLBEING" },
-  { n: "V", href: "/room/memory-review", name: "Memory", sub: "& REVIEW" },
-  { n: "VI", href: "/room/disc", name: "Disc", sub: "& MUSIC" },
-];
+// Landing blocks are assembled from the registry in src/lib/room-blocks.ts.
+// The user picks per block (tile / bottom-link / off) in /backstage/settings;
+// the choice rides in the `kimi-room-layout` cookie. Default = canon 6 as tiles
+// + any addon (Atlas) as a bottom link.
 
 export default async function RoomPage({
   searchParams,
@@ -57,6 +52,10 @@ export default async function RoomPage({
   const isDay = theme === "day";
   const p = isDay ? DAY_PALETTE : NIGHT_PALETTE;
   const moon = getMoonPhase();
+
+  // Assemble landing blocks from the registry + the user's saved layout cookie.
+  const layoutCookie = (await cookies()).get(ROOM_LAYOUT_COOKIE)?.value;
+  const { tiles, links } = resolveRoom(layoutCookie ? decodeURIComponent(layoutCookie) : null);
   // JST day-of-month for rose stage selection (day mode hero)
   const jst = new Date(refDate.getTime() + 9 * 3600 * 1000);
   const dayOfMonth = jst.getUTCDate();
@@ -187,9 +186,9 @@ export default async function RoomPage({
           className="grid grid-cols-2 gap-3"
           style={{ padding: "18px 26px", position: "relative", zIndex: 2 }}
         >
-          {MODULES.map((m) => (
+          {tiles.map((m, i) => (
             <Link
-              key={m.n}
+              key={m.id}
               href={m.href}
               className="block"
               style={{
@@ -216,7 +215,7 @@ export default async function RoomPage({
                 <circle cx="50" cy="5" r="1" fill={p.accent} />
               </svg>
               <div style={{ fontSize: 10, letterSpacing: 2, color: p.accent, fontStyle: "italic", marginTop: 6 }}>
-                {m.n}
+                {ROMAN[i + 1] ?? i + 1}
               </div>
               <div>
                 <div
@@ -254,6 +253,26 @@ export default async function RoomPage({
           }}
         >
           <ThemeToggleLink current={theme} color={p.mute} />
+          {/* addon blocks (registry slot "link") — same register as backstage */}
+          {links.map((b) => (
+            <Link
+              key={b.id}
+              href={b.href}
+              style={{
+                padding: "8px 14px",
+                margin: 0,
+                fontSize: 14,
+                letterSpacing: 3,
+                color: p.ink,
+                fontStyle: "italic",
+                fontFamily: '"Cormorant Garamond", serif',
+                textDecoration: "none",
+                opacity: 0.82,
+              }}
+            >
+              {b.name.toLowerCase()}
+            </Link>
+          ))}
           <Link
             href="/backstage"
             style={{

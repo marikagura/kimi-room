@@ -84,7 +84,7 @@ Supabase / Postgres / Obsidian / Notion / Ombre-brain 任何 DB。
 常见改法：
 - "把他改成她" → `system-prompt.ts` 里的 pronoun + /settings 里的名字
 - "换颜色" → `globals.css` @theme 色值
-- "加模块" → `src/app/room/新名字/page.tsx` + `src/components/` 新组件
+- "加模块" → `src/app/room/新名字/page.tsx` + `src/components/` 新组件 · addon 怎么进首页见 [ADDONS.md](ADDONS.md)
 - "接我的后端" → 写一个新 adapter 实现 `AdapterBundle`
 - "删掉 RP 功能" → 删 /settings 里 character 相关 + system-prompt.ts 里的 persona 模板
 

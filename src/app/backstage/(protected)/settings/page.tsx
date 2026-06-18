@@ -34,6 +34,7 @@ import {
   setCharName,
   setUserName,
 } from "@/lib/template";
+import { RoomLayoutEditor } from "@/components/backstage/RoomLayoutEditor";
 
 type Toast = { msg: string; tone: "ok" | "err" } | null;
 
@@ -418,6 +419,9 @@ export default function SettingsPage() {
           Notion · Supabase · custom adapter · TBD
         </div>
       </section>
+
+      {/* ── Room layout (assemble landing blocks) ────── */}
+      <RoomLayoutEditor />
 
       {/* ── footer ────────────────────────────── */}
       <p className={`mt-24 text-center ${helpCls}`}>
