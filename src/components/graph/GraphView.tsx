@@ -24,8 +24,8 @@ const GRAPH_NIGHT = {
   rose: "#b04063", roseDeep: "#7a1f3a", rosePale: "#d28aa1",
   glass: "#fff7e6",
   line: "rgba(201,167,106,0.30)",
-  calm: "#8a9c84", warmth: "#c9a76a", brooding: "#5a708a", toward: "#b04063",
-  cobalt: "#6f86ab",
+  calm: "#8a9c84", warmth: "#c9a76a", brooding: "#9488b8", toward: "#b04063",
+  cobalt: "#6f86ab", obs: "#a9adb5",
 };
 const GRAPH_DAY: typeof GRAPH_NIGHT = {
   bg: "#ece2d2", bgSoft: "#f1e8d8",
@@ -35,7 +35,7 @@ const GRAPH_DAY: typeof GRAPH_NIGHT = {
   glass: "#ffffff",
   line: "rgba(110,40,55,0.30)",
   calm: "#7a8a72", warmth: "#a8843a", brooding: "#5a708a", toward: "#a83a5d",
-  cobalt: "#5a708a",
+  cobalt: "#5a708a", obs: "#8f939b",
 };
 type GraphTheme = typeof GRAPH_NIGHT;
 type Mode = "galaxy" | "ink" | "silk";
@@ -68,7 +68,7 @@ function nodeColor(node: GraphNode, T: GraphTheme): string {
   if (node.kind === "memory") return vColor(node.valence, T);
   if (node.kind === "entity") return T.gold;
   if (node.kind === "topic") return T.cobalt;
-  return T.inkMid;
+  return T.obs; // observation — soft cool gray, not the dark inkMid brown
 }
 
 type P3 = { x: number; y: number; z: number; node: GraphNode };
@@ -97,6 +97,16 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
   useEffect(() => {
     try { localStorage.setItem("kimiRoomGraph", JSON.stringify({ mode, spin })); } catch { /* ignore */ }
   }, [mode, spin]);
+
+  // /room/graph: disable pull-to-refresh (overscroll) while this page is mounted —
+  // the canvas owns vertical drag, an accidental pull shouldn't reload the route.
+  useEffect(() => {
+    const root = document.documentElement, body = document.body;
+    const pr = root.style.overscrollBehaviorY, pb = body.style.overscrollBehaviorY;
+    root.style.overscrollBehaviorY = "contain";
+    body.style.overscrollBehaviorY = "contain";
+    return () => { root.style.overscrollBehaviorY = pr; body.style.overscrollBehaviorY = pb; };
+  }, []);
 
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const dreamSurfaced = useMemo(() => new Set(dream?.surfacedIds ?? []), [dream]);
@@ -132,8 +142,8 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
         const phi = Math.PI * (3 - Math.sqrt(5));
         const thetaA = phi * i + a * 0.9;
         let radius = SHELL[kind];
-        if (kind === "memory") radius = 0.56 + b * 0.34;
-        if (kind === "observation") radius = 1.0 + b * 0.12;
+        if (kind === "memory") radius = 0.52 + b * 0.28;
+        if (kind === "observation") radius = 0.82 + b * 0.1;
         node3d.set(node.id, { x: Math.cos(thetaA) * rr * radius, y: y * radius, z: Math.sin(thetaA) * rr * radius, node });
       });
     }
@@ -155,19 +165,14 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
       { x: 0.1, y: 0.5, z: 0.5, c: "warmth" as const, r: 0.8 },
       { x: -0.3, y: -0.5, z: 0.1, c: "brooding" as const, r: 0.85 },
     ];
-    const bgStars = Array.from({ length: 150 }, (_, i) => {
-      const { a, b } = hash01("bg3" + i); const { a: c } = hash01("bgs" + i);
-      return { x: a, y: b, r: c * 1.2 + 0.2, o: 0.1 + c * 0.4, lead: i % 23 === 0 };
-    });
     const petals = Array.from({ length: 7 }, (_, i) => { const { a, b } = hash01("pet" + i); return { seed: i, ph: a, sp: 0.5 + b * 0.7, sway: a * 6 }; });
     const settled = Array.from({ length: 5 }, (_, i) => { const { a, b } = hash01("rest" + i); return { dx: (a - 0.5) * 1.5, rot: b * Math.PI, sz: 0.85 + a * 0.4 }; });
 
-    // rose lineart
-    const roseGold = new Image(); roseGold.src = "/icons/graph-rose-gold.png";
+    // rose lineart — deep rose (玫红), both day & night
     const roseDeep = new Image(); roseDeep.src = "/icons/graph-rose-deep.png";
     const ROSE = { h: 0.34, dy: 0.12 };
 
-    const view = { rotX: -0.22, rotY: 0.4, zoom: 1 };
+    const view = { rotX: -0.4, rotY: 0.4, zoom: 1 };
     let W = 0, H = 0, DPR = 1, cx = 0, cy = 0, R = 1, M = 1, t = 0;
     const proj = new Map<string, Proj>();
 
@@ -177,7 +182,7 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
       W = Math.max(1, rect.width); H = Math.max(1, rect.height);
       canvas!.width = Math.round(W * DPR); canvas!.height = Math.round(H * DPR);
       ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
-      cx = W / 2; cy = H / 2; M = Math.min(W, H); R = M * 0.36 * view.zoom;
+      cx = W / 2; cy = H / 2; M = Math.min(W, H); R = M * 0.17 * view.zoom;
     }
     const F = 3.0;
     function project(p: { x: number; y: number; z: number }): Proj {
@@ -188,7 +193,7 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
       const persp = F / (F - z2);
       return { x: cx + x1 * persp * R, y: cy + y1 * persp * R, z: z2, s: persp };
     }
-    const baseSize = (node: GraphNode) => 1.4 + node.weight * 2.9;
+    const baseSize = (node: GraphNode) => 1.1 + node.weight * 2.1;
 
     function draw() {
       const c = ctx!; if (W < 2 || H < 2) { resize(); if (W < 2 || H < 2) return; }
@@ -201,27 +206,25 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
         const g = c.createRadialGradient(cx, cy, 0, cx, cy, M * 0.9);
         g.addColorStop(0, hexA(Th.bgSoft, 0)); g.addColorStop(1, hexA(Th.roseDeep, 0.06));
         c.fillStyle = g; c.fillRect(0, 0, W, H);
-      } else {
-        const g = c.createRadialGradient(cx, cy + H * 0.05, 0, cx, cy, M * 1.0);
-        g.addColorStop(0, hexA(Th.rose, dk ? 0.12 : 0.06));
-        g.addColorStop(0.5, hexA(Th.roseDeep, dk ? 0.05 : 0.02));
-        g.addColorStop(1, hexA(Th.bg, 0));
-        c.fillStyle = g; c.fillRect(0, 0, W, H);
-        if (dk) {
-          c.save();
-          for (const s of bgStars) {
-            const tw = s.lead ? 0.5 + 0.5 * Math.abs(Math.sin(t * 0.03 + s.x * 9)) : 1;
-            c.globalAlpha = s.o * tw; c.fillStyle = Th.ink;
-            c.beginPath(); c.arc(s.x * W, s.y * H, s.r, 0, 7); c.fill();
-            if (s.lead && tw > 0.7) {
-              c.globalAlpha = (tw - 0.7) * 1.6; c.strokeStyle = Th.goldBright; c.lineWidth = 0.5;
-              const x = s.x * W, y = s.y * H, r = s.r * 4;
-              c.beginPath(); c.moveTo(x - r, y); c.lineTo(x + r, y); c.moveTo(x, y - r); c.lineTo(x, y + r); c.stroke();
-            }
-          }
-          c.restore();
-        }
       }
+      // night/galaxy bg = the solid Th.bg fill above only. The rose-wash radial
+      // gradient was removed: on near-black it banded into two faint horizontal
+      // rings (the "两排星点" — a radial color-stop contour crosses each side at
+      // two y's). The rose's own halo carries the atmosphere now.
+
+      // clip nebula + galaxy to the glass interior — every star stays inside the bell, no overflow
+      c.save();
+      {
+        const w = M * 0.30, bY = cy + M * 0.40, fY = bY - M * 0.015, sY = cy - M * 0.16, tY = cy - M * 0.42, nW = M * 0.052;
+        c.beginPath(); c.moveTo(cx - w, bY); c.lineTo(cx - w, fY);
+        c.quadraticCurveTo(cx - w * 1.02, (fY + sY) / 2, cx - w * 0.99, sY);
+        c.quadraticCurveTo(cx - w, tY, cx - nW, tY + M * 0.012);
+        c.quadraticCurveTo(cx, tY - M * 0.018, cx + nW, tY + M * 0.012);
+        c.quadraticCurveTo(cx + w, tY, cx + w * 0.99, sY);
+        c.quadraticCurveTo(cx + w * 1.02, (fY + sY) / 2, cx + w, fY);
+        c.lineTo(cx + w, bY); c.closePath();
+      }
+      c.clip();
 
       // nebula
       if (md !== "ink") {
@@ -229,7 +232,7 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
         for (const nb of NEB) {
           const p = project(nb); const rad = M * nb.r * 0.5 * p.s; const col = (Th as Record<string, string>)[nb.c];
           const g = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
-          g.addColorStop(0, hexA(col, dk ? 0.10 : 0.05)); g.addColorStop(0.5, hexA(col, dk ? 0.04 : 0.02)); g.addColorStop(1, hexA(col, 0));
+          g.addColorStop(0, hexA(col, dk ? 0.06 : 0.05)); g.addColorStop(0.5, hexA(col, dk ? 0.025 : 0.02)); g.addColorStop(1, hexA(col, 0));
           c.fillStyle = g; c.beginPath(); c.arc(p.x, p.y, rad, 0, 7); c.fill();
         }
         c.restore();
@@ -276,6 +279,7 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
         }
       }
 
+      c.restore(); // end glass clip — bell + rose draw on top, unclipped
       drawBell(Th, dk);
     }
 
@@ -298,7 +302,7 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
       if (isSurf) { const h = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30 * pulse); h.addColorStop(0, hexA(Th.rose, 0.4 * pulse)); h.addColorStop(1, hexA(Th.rose, 0)); c.fillStyle = h; c.beginPath(); c.arc(p.x, p.y, 30 * pulse, 0, 7); c.fill(); }
       else if (isLink) { const h = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, 18); h.addColorStop(0, hexA(Th.warmth, 0.3)); h.addColorStop(1, hexA(Th.warmth, 0)); c.fillStyle = h; c.beginPath(); c.arc(p.x, p.y, 18, 0, 7); c.fill(); }
       const bloom = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz * 2.8);
-      bloom.addColorStop(0, hexA(col, 0.38 * depthA)); bloom.addColorStop(1, hexA(col, 0));
+      bloom.addColorStop(0, hexA(col, (dk ? 0.24 : 0.38) * depthA)); bloom.addColorStop(1, hexA(col, 0));
       c.fillStyle = bloom; c.beginPath(); c.arc(p.x, p.y, sz * 2.8, 0, 7); c.fill();
       c.globalAlpha = depthA; c.fillStyle = node.kind === "entity" ? Th.goldBright : col;
       if (node.kind === "entity") { c.beginPath(); c.moveTo(p.x, p.y - sz); c.lineTo(p.x + sz, p.y); c.lineTo(p.x, p.y + sz); c.lineTo(p.x - sz, p.y); c.closePath(); c.fill(); }
@@ -362,11 +366,11 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
 
     /* THE GLASS BELL */
     function drawRose(x: number, y: number, h: number, Th: GraphTheme, dk: boolean, alpha: number) {
-      const c = ctx!; const img = dk ? roseGold : roseDeep; const pulse = 0.78 + 0.22 * Math.sin(t * 0.05);
+      const c = ctx!; const img = roseDeep; const pulse = 0.78 + 0.22 * Math.sin(t * 0.05);
       c.save(); c.globalCompositeOperation = dk ? "lighter" : "source-over";
       const gr = h * (0.85 + 0.12 * Math.sin(t * 0.05));
       const g = c.createRadialGradient(x, y, 0, x, y, gr);
-      g.addColorStop(0, hexA(Th.rose, (dk ? 0.40 : 0.24) * pulse));
+      g.addColorStop(0, hexA(Th.rose, (dk ? 0.26 : 0.24) * pulse));
       g.addColorStop(0.55, hexA(Th.roseDeep, (dk ? 0.14 : 0.07) * pulse));
       g.addColorStop(1, hexA(Th.rose, 0));
       c.fillStyle = g; c.beginPath(); c.arc(x, y, gr, 0, 7); c.fill();
@@ -505,14 +509,14 @@ export function GraphView({ G, data, theme }: { G: typeof GOTHIC; data: GraphDat
     const ro = new ResizeObserver(() => { resize(); });
     ro.observe(wrap);
     const onLoad = () => { resize(); };
-    roseGold.addEventListener("load", onLoad); roseDeep.addEventListener("load", onLoad);
+    roseDeep.addEventListener("load", onLoad);
     resize(); tick();
 
     return () => {
       cancelAnimationFrame(raf); ro.disconnect();
       canvas.removeEventListener("pointerdown", onDown); canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp); canvas.removeEventListener("wheel", onWheel);
-      roseGold.removeEventListener("load", onLoad); roseDeep.removeEventListener("load", onLoad);
+      roseDeep.removeEventListener("load", onLoad);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, dreamSurfaced, dreamLinked]);
