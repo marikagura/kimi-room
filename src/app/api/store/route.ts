@@ -62,8 +62,14 @@ async function db(): Promise<PrismaLike> {
   if (!process.env.DATABASE_URL) {
     throw new Error("prisma adapter: set DATABASE_URL (see docs/SELF-HOST.md)");
   }
-  const pkg = "@prisma/client"; // variable specifier → optional dep, not bundled
-  const mod = (await import(pkg)) as { PrismaClient: new () => unknown };
+  // Optional dep, loaded only when the prisma backend is actually used. The
+  // turbopackIgnore comment stops the bundler resolving it at build (it isn't
+  // installed unless you opt into this backend); the variable specifier keeps it
+  // out of the type-check too. Resolved natively at runtime from node_modules.
+  const pkg = "@prisma/client";
+  const mod = (await import(/* turbopackIgnore: true */ pkg)) as {
+    PrismaClient: new () => unknown;
+  };
   _db = new mod.PrismaClient() as PrismaLike;
   return _db;
 }
