@@ -32,7 +32,7 @@ a room for one person and her other one.
 kimi-room 是**前端壳**。它的数据层是可插拔的：
 
 ```
-src/lib/stores/types.ts        ← 9 个 store 的接口定义
+src/lib/stores/types.ts        ← 11 个 store 的接口定义
 src/lib/stores/idb-adapter.ts  ← 默认 IndexedDB（浏览器本地）
 src/lib/stores/index.ts        ← 切 adapter 的地方
 ```
