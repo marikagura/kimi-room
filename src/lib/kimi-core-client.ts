@@ -71,16 +71,31 @@ export async function readCoreChat(
 // Append one chat message to kimi-core (chat_write tool) so other devices see it and
 // it enters the digest path. Returns the new CHAT event id so the caller can later
 // delete that exact row (see deleteCoreChat / retry); null in local mode or on any
-// failure. Best-effort — never blocks the chat.
-export async function writeCoreChat(role: "user" | "assistant", text: string, threadId?: string): Promise<string | null> {
+// failure. Best-effort, but not silently lossy: every write carries a fresh
+// idempotency key (kimi-core dedupes on Event.dedupeKey), and a failed attempt is
+// retried once with the SAME key — so a lost response can't duplicate the row and
+// a transient blip can't silently drop the message from the cross-device timeline.
+export async function writeCoreChat(
+  role: "user" | "assistant",
+  text: string,
+  threadId?: string,
+): Promise<string | null> {
   if (!isCoreBackend() || !text.trim()) return null;
-  try {
-    const out = await callCoreTool("chat_write", { role, text, ...(threadId ? { threadId } : {}) });
-    const r = JSON.parse(out) as { ok?: boolean; id?: string };
-    return r.ok && typeof r.id === "string" ? r.id : null;
-  } catch {
-    return null; /* best-effort */
+  const dedupeKey =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `dk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const args = { role, text, ...(threadId ? { threadId } : {}), dedupeKey };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const out = await callCoreTool("chat_write", args);
+      const r = JSON.parse(out) as { ok?: boolean; id?: string };
+      return r.ok && typeof r.id === "string" ? r.id : null;
+    } catch {
+      if (attempt === 0) await new Promise((res) => setTimeout(res, 1500));
+    }
   }
+  return null; /* best-effort after one retry */
 }
 
 // Delete one chat message in kimi-core (chat_delete tool). The only delete the room

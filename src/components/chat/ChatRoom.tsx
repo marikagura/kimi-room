@@ -500,7 +500,17 @@ export function ChatRoom() {
     setDraft("");
     setBusy(true);
     const threadId = session.sessionId;
-    void writeCoreChat("user", text, threadId);
+    // Fire-and-forget with an idempotency key (kimi-core dedupes on it), then tag
+    // the local message with its core row id so mergeCoreRows matches by id
+    // instead of falling back to role+content (which misfires on repeated text).
+    void writeCoreChat("user", text, threadId).then((coreId) => {
+      if (coreId) {
+        setSession((s) => ({
+          ...s,
+          msgs: s.msgs.map((m) => (m.id === userMsg.id ? { ...m, coreId } : m)),
+        }));
+      }
+    });
     await streamReply(nextMsgs, replyId, threadId);
   }
 
