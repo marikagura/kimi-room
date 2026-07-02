@@ -36,7 +36,7 @@ loop, Telegram, ops.
 kimi-room is the **frontend shell**. Its data layer is pluggable:
 
 ```
-src/lib/stores/types.ts        ← the 9 store interfaces
+src/lib/stores/types.ts        ← the 11 store interfaces (+ blob)
 src/lib/stores/idb-adapter.ts  ← default IndexedDB (browser-local)
 src/lib/stores/index.ts        ← where you swap the adapter
 ```
@@ -89,7 +89,7 @@ go through your gateway, not the browser.
 If you hand this repo to ChatGPT / Claude / any AI to change it, tell it:
 
 - This is a Next.js App Router + TypeScript project
-- The data layer is in `src/lib/stores/` — all CRUD goes through the `StoreContract<T>` interface
+- The data layer is in `src/lib/stores/` — structured dashboard data (11 stores + blob) goes through the `StoreContract<T>` interface; calendar day-grid, heartbeat, playlist, and finance currently live in raw localStorage and do not sync through the server adapters (back up via the /backstage/ops full export)
 - LLM calls are in `src/lib/llm-client.ts` — OpenAI chat-completion format
 - The system prompt is in `src/lib/system-prompt.ts` — `{{user}}` `{{char}}` template vars
 - The visual theme is in `src/app/globals.css` @theme — Mucha dark-gilt art style

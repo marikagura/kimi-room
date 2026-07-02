@@ -52,9 +52,19 @@ browser  ──{ name, arguments }──▶  /api/core  ──MCP──▶  kimi
 - Set `KIMI_CORE_URL` and `KIMI_API_KEY` (server-side only; the browser does not
   receive the key — the `/api/core` route forwards calls with the Bearer token).
 - `src/lib/kimi-core-client.ts` exposes `fetchCoreMemoryContext(query)` (retrieval)
-  and `persistCoreMemory(key, content)`. These are intended to be invoked within a
-  chat turn to inject retrieved memory into the prompt prior to calling the
-  operator's model.
+  and `persistCoreMemory(key, content)`. The shipped chat UI does not call these
+  two — they are wiring points for the operator: invoke them within a chat turn
+  to inject retrieved memory into the prompt prior to calling the operator's
+  model. What ships wired is cross-device transcript sync (`chat_write` /
+  `chat_read` / `chat_threads` / `chat_delete`).
+
+### Owner sign-in required
+
+/api/core attaches the operator's `KIMI_API_KEY` and forwards tool calls, so it
+is a trust boundary. Besides `KIMI_CORE_URL` + `KIMI_API_KEY`, you must also set
+`KIMI_OWNER_PASSWORD` and sign in once at **/backstage/login** (the cookie lasts
+30 days) — otherwise every /api/core call returns 401 and sync silently degrades
+to local-only behavior. /api/tts sits behind the same gate.
 
 ### Retrieval, not a CRUD substitution
 
@@ -62,9 +72,10 @@ kimi-core exposes an agent-text interface: `memory_search` and `reentry` return
 human-readable text intended for insertion into a model prompt, not structured
 records. kimi-room therefore uses kimi-core for retrieval-augmented chat (text
 in, text into the prompt), and not as a structured store behind the dashboards.
-The structured dashboards (calendar, sleep, keepsakes, and so on) remain on local
-IndexedDB in both modes. Server-side persistence of that structured data is the
-deploying operator's responsibility; kimi-room does not provide it.
+The structured dashboards (keepsakes, study, sleep, and so on) stay on local
+IndexedDB by default in both modes; optional server-side persistence for them is
+available via the reference adapters (supabase / prisma / core) — see
+docs/SELF-HOST.md.
 
 ---
 
@@ -76,7 +87,7 @@ deploying operator's responsibility; kimi-room does not provide it.
 | chat memory       | local worldbook          | kimi-core (`memory_search`)           |
 | chat transcript   | local (IDB / localStorage) | kimi-core (`chat_write`/`chat_read`, synced across devices) |
 | chat model        | operator subscription / API | operator subscription / API (same) |
-| configuration     | none                     | `NEXT_PUBLIC_KIMI_BACKEND=core` + `KIMI_CORE_URL` + `KIMI_API_KEY` |
+| configuration     | none                     | `NEXT_PUBLIC_KIMI_BACKEND=core` + `KIMI_CORE_URL` + `KIMI_API_KEY` + `KIMI_OWNER_PASSWORD` (sign-in above) |
 | requires a backend | no                      | yes — a running kimi-core             |
 
 kimi-room is the interface layer. The memory engine, where one is required, is

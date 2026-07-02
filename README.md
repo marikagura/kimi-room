@@ -81,7 +81,7 @@ RAG 与 redirect 的区分见 **[docs/BACKENDS.md](docs/BACKENDS.md)**。
 如果你把这个 repo 丢给 ChatGPT / Claude / 任何 AI 帮你改，告诉它：
 
 - 这是 Next.js App Router + TypeScript 项目
-- 数据层在 `src/lib/stores/` — 所有 CRUD 走 `StoreContract<T>` 接口
+- 数据层在 `src/lib/stores/` — 结构化 dashboard 数据（11 store + blob）走 `StoreContract<T>` 接口；calendar 日格、heartbeat、playlist、finance 目前直接存 localStorage，不随 server adapter 同步，备份走 /backstage/ops 全量导出
 - LLM 调用在 `src/lib/llm-client.ts` — OpenAI chat completion 格式
 - 系统提示词在 `src/lib/system-prompt.ts` — `{{user}}` `{{char}}` 模板变量
 - 视觉主题在 `src/app/globals.css` @theme — Mucha 暗金美术风格
