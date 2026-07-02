@@ -17,6 +17,13 @@ export function RegisterSW() {
       .catch((err) => {
         console.warn("[sw] register failed:", err?.message ?? err);
       });
+    // Ask the browser to mark this origin's storage persistent: without it, IDB +
+    // localStorage (chat sessions, calendar days, memories) are BestEffort and the
+    // browser may evict them under pressure — iOS also wipes after 7 days of
+    // disuse. Best-effort: denial just leaves the default eviction rules.
+    if (navigator.storage?.persist) {
+      void navigator.storage.persist().catch(() => {});
+    }
   }, []);
   return null;
 }
