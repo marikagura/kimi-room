@@ -1,4 +1,4 @@
-// V2 Store interfaces · 9 store · 抽象 backend (IDB / Notion / Supabase / canon Prisma).
+// V2 Store interfaces · 11 structured store + blob · 抽象 backend (IDB / Supabase / Prisma / core).
 //
 // 设计原则:
 // - 每 store entry 含 `id` (uuid) + `createdAt` + `updatedAt` (ISO timestamp)

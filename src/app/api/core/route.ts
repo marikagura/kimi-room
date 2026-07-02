@@ -20,9 +20,10 @@ export const dynamic = "force-dynamic";
 // (1) require the owner session cookie (same gate /api/store uses) so an
 // anonymous caller can't reach kimi-core at all, and (2) a hardcoded allowlist
 // of the exact tools the room actually invokes (every callCoreTool call site in
-// src/) — anything else (gmail_read, memory_search full, store{op:"empty"}, …)
-// is rejected before we ever connect, so the browser can't drive destructive or
-// data-exfiltrating tools it never needs.
+// src/) — anything else (gmail_read, memory_search full, …) is rejected before
+// we ever connect. Note the allowlist checks tool NAMES only, not arguments:
+// `store` is allowed as a whole, including op:"empty" — the core-adapter's own
+// backup/empty flow uses it, and every caller past this gate is the owner.
 const ALLOWED_TOOLS = new Set([
   "memory_search_safe",
   "memory_write",

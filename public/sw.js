@@ -9,7 +9,7 @@
 //
 // Cache 名带版本, 升级 SW 时旧 cache 自动 unregister + 清掉.
 
-const VERSION = "v54-2026-05-21b"; // v0.17 · git author email fix to marikagura · v0.10-0.16 build unblock
+const VERSION = "v55-2026-07-02"; // v0.31 · stale since v0.17 — bump per release so activate cleanup reclaims old runtime caches
 
 const APP_SHELL_CACHE = `kimi-shell-${VERSION}`;
 const RUNTIME_CACHE = `kimi-runtime-${VERSION}`;
