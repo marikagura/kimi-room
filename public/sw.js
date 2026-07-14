@@ -9,7 +9,7 @@
 //
 // Cache 名带版本, 升级 SW 时旧 cache 自动 unregister + 清掉.
 
-const VERSION = "v55-2026-07-02"; // v0.31 · stale since v0.17 — bump per release so activate cleanup reclaims old runtime caches
+const VERSION = "v57-2026-07-14"; // bump per release so activate cleanup reclaims old runtime caches
 
 const APP_SHELL_CACHE = `kimi-shell-${VERSION}`;
 const RUNTIME_CACHE = `kimi-runtime-${VERSION}`;
@@ -51,12 +51,55 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// ---- Web Push: the wake paper lands silent on the lock screen ----
+// The push payload is { title, body, url, tag }. `silent: true` is deliberate —
+// a paper written for someone asleep shouldn't make a sound. Delete that line if
+// you want a chime.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    /* non-JSON payload — ignore */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "纸到了", {
+      body: data.body || "",
+      tag: data.tag || "ephemera",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      silent: true,
+      data: { url: data.url || "/room/ephemera" },
+    }),
+  );
+});
+
+// Tapping the notification focuses an open tab or opens the paper spout.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/room/ephemera";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) return client.focus();
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return; // 只 cache GET
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // 只本域
+
+  // Dev bypass: on localhost, never cache-serve. Turbopack's dev chunk names are
+  // stable while their *content* changes on recompile, so a cache-first SW would
+  // hand back stale JS that no longer matches the server's HTML — hydration then
+  // fails silently. Let the network own dev; caching is a production concern.
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return;
 
   // 不 cache 的: auth + chat + recovery (auth flow / SSE)
   if (

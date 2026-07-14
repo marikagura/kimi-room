@@ -81,6 +81,27 @@ it in /settings and move some room to the bottom.
 
 ---
 
+## Built-in addon: Ephemera
+
+`/room/ephemera` — treating a push notification as a paper that prints out:
+typeset while you sleep, unspooling line by line like a thermal receipt when you
+open it, then filed into a drawer you can flip back through. 21 genres (wake paper /
+week score / postcard / passport / star chart…), shipped with one neutral, fictional
+demo.
+
+- Layouts (pure SVG + CSS, a 1-bit thermal palette): `src/components/ephemera/EphemeraClient.tsx`
+  — a `switch (paper.kind)` dispatches to each `*Sheet`; an unbuilt kind falls back
+  to the daily sheet.
+- Data: `src/lib/ephemera-demo.ts` (`GENRES`, the 21-genre registry, + `DEMO_PAPERS`,
+  one sample each); an optional rule-selection layer in `src/lib/ephemera-editor.ts`.
+- Swap in your own papers (core / DB / API), wire lock-screen push (VAPID), privacy
+  notes: see [docs/EPHEMERA.en.md](docs/EPHEMERA.en.md).
+
+Ephemera defaults to a bottom link (addon). To put it on the home grid, tick it in
+/settings and move some old room to the bottom.
+
+---
+
 ## What changed (this changeset)
 
 Added:

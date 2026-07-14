@@ -11,7 +11,7 @@ a room for one person and her other one.
 An open-source companion PWA. Six rooms — assemble them yourself: each is an
 addon (a building block); pick which six sit on the home grid in
 `/backstage/settings`, the rest fall to the bottom (see [ADDONS.en.md](ADDONS.en.md)).
-**Atlas** ships built-in. Your data lives in your browser. No server, no domain,
+**Atlas** and **Ephemera** ship built-in. Your data lives in your browser. No server, no domain,
 no data collection. Code AGPL v3, artwork CC BY-NC.
 
 > **Just want to use it?** → [QUICKSTART.en.md](QUICKSTART.en.md) · 5 minutes · one-click deploy
@@ -75,6 +75,7 @@ deleted. Hand this section, plus what you want changed, to your AI:
 | **Memory** | local IndexedDB | your DB. Review flow editable or removable |
 | **Disc** | local chat screenshots + playlist | archive to cloud |
 | **Atlas** (addon · travel log) | one static demo trip · iron-tracery window opens to reveal the image | wire your own source (DB / MDX / API), set `imageUrl` to a real image; or tuck it away in /settings |
+| **Ephemera** (addon · keepsake papers) | 21 "push-as-paper" genres · one neutral fictional demo | wire your own papers (core / DB / API) + VAPID lock-screen push (see [docs/EPHEMERA.en.md](docs/EPHEMERA.en.md)); or tuck it away in /settings |
 | **Backstage** | fixed /ops page | add any ops panel you want |
 | **All manual inputs** | hand-filled | all replaceable with automation. Candles via app_open, sleep via sensors, finance via bank API |
 | **Character / RP features** | character config in /settings | deletable wholesale. Tell your AI "remove all character and RP features" |

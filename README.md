@@ -8,7 +8,7 @@
 
 a room for one person and her other one.
 
-开源 companion PWA。六个房间，可以自己搭——每块是一个 addon（积木），在 `/backstage/settings` 勾哪六个上首页、其余落底部（见 [ADDONS.md](ADDONS.md)）；已内置 **Atlas**。数据在你浏览器里。
+开源 companion PWA。六个房间，可以自己搭——每块是一个 addon（积木），在 `/backstage/settings` 勾哪六个上首页、其余落底部（见 [ADDONS.md](ADDONS.md)）；已内置 **Atlas** 与 **Ephemera**。数据在你浏览器里。
 不需要服务器、不需要域名、不收集任何数据。代码 AGPL v3，美术 CC BY-NC。
 
 > **只想用？** → [QUICKSTART.md](QUICKSTART.md) · 5 分钟 · 一键部署
@@ -68,6 +68,7 @@ RAG 与 redirect 的区分见 **[docs/BACKENDS.md](docs/BACKENDS.md)**。
 | **Memory** | 本地 IndexedDB | 接你的 DB。审核流程可改可删 |
 | **Disc** | 本地对话截图 + 歌单 | 归档到云 |
 | **Atlas** (addon · 旅行册) | 一份静态 demo 旅行数据 · 铁艺拱窗开窗看图 | 接你自己的来源（DB / MDX / API），`imageUrl` 换成真图；不想要在 /settings 收起 |
+| **Ephemera** (addon · 纪念纸) | 21 种「推送即纸」体裁 · 一份中性虚构 demo | 接你自己的 papers（core / DB / API）+ VAPID 锁屏推送（见 [docs/EPHEMERA.md](docs/EPHEMERA.md)）；不想要在 /settings 收起 |
 | **Backstage** | 固定 /ops 页面 | 加任何你想要的 ops 面板 |
 | **所有 manual 输入** | 手动填 | 全部可以用自动化替代。蜡烛可以用 app_open，睡眠可以用传感器，财务可以接银行 API |
 | **Character / RP 功能** | 有 /settings 里的角色设定 | 不想要可以整个删。告诉你的 AI "帮我删掉所有 character 和 RP 相关功能" |

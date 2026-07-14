@@ -70,6 +70,23 @@ Atlas 默认是底部链接（addon）。想把它当第七到第六个房间，
 
 ---
 
+## 内置 addon：Ephemera
+
+`/room/ephemera` —— 把一张推送通知当成一张会打印出来的纸：趁睡着排版，醒来像热敏
+小票一样一行行印出，再归进一个能往回翻的抽屉。21 种体裁（醒来纸 / 周谱 / 明信片 /
+护照盖章页 / 某夜星空…），开箱是一份中性虚构 demo。
+
+- 版式（纯 SVG + CSS，颜色走 1-bit 热敏审美）：`src/components/ephemera/EphemeraClient.tsx`
+  —— 一个 `switch (paper.kind)` 分发到各 `*Sheet` 组件，未建的 kind 落回醒来纸。
+- 数据：`src/lib/ephemera-demo.ts`（`GENRES` 21 种注册表 + `DEMO_PAPERS` 每种一张样张）；
+  可选的规则挑选层 `src/lib/ephemera-editor.ts`。
+- 换成你自己的 papers（core / DB / API）、接锁屏推送（VAPID）、隐私说明：
+  见 [docs/EPHEMERA.md](docs/EPHEMERA.md)。
+
+Ephemera 默认是底部链接（addon）。想上首页在 /settings 勾它、把某个旧房间挪到底部。
+
+---
+
 ## 改了什么（this changeset）
 
 新增：
