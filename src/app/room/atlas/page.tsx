@@ -41,7 +41,7 @@ export default async function AtlasPage() {
         background: p.bg,
         color: p.ink,
         minHeight: "100dvh",
-        fontFamily: '"Cormorant Garamond","Noto Serif SC","Noto Serif JP",serif',
+        fontFamily: 'var(--font-serif)',
       }}
     >
       {/* back to /room */}
@@ -55,7 +55,7 @@ export default async function AtlasPage() {
             gap: 6,
             color: p.mute,
             textDecoration: "none",
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             fontSize: 13,
             letterSpacing: 1,

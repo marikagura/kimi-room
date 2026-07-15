@@ -101,7 +101,7 @@ function PieceItem({
           <div
             style={{
               fontSize: 14,
-              fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+              fontFamily: 'var(--font-serif)',
               color: P.ink,
             }}
           >

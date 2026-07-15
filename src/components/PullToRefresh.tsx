@@ -130,7 +130,7 @@ export function PullToRefresh() {
               color: armed_
                 ? "var(--kimi-ptr-color-armed)"
                 : "var(--kimi-ptr-color)",
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
             }}
           >
             {refreshing ? "refreshing…" : armed_ ? "release" : "pull"}

@@ -29,7 +29,7 @@ function isCategoryFoxOn(name: string): boolean {
 }
 
 const FONT_STACK =
-  '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif';
+  'var(--font-serif)';
 
 export function CategoryClient({
   P,
@@ -536,7 +536,7 @@ function EntryForm({
           padding: "22px 22px 28px",
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
-          fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif',
+          fontFamily: 'var(--font-serif)',
         }}
       >
         <input

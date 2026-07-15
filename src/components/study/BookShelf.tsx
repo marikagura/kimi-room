@@ -17,7 +17,7 @@ import { BOOKS as STATIC_SEED } from "@/lib/reading-data";
 // only · 加 inline edit (manual input toggle) 替 sub-page link 流.
 
 const FONT_STACK =
-  '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif';
+  'var(--font-serif)';
 
 const STATUS_OPTIONS: BookEntry["status"][] = ["want", "reading", "read", "abandoned"];
 

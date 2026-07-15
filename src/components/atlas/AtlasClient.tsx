@@ -346,7 +346,7 @@ function CarteView({ places, p, selId, onOpen }: { places: TravelPlace[]; p: Atl
               const r = (d * Math.PI) / 180;
               return <path key={d} d={`M 0 0 L ${Math.sin(r) * 3.5} ${-Math.cos(r) * 3.5} L ${Math.sin(r) * 20} ${-Math.cos(r) * 20} L ${-Math.sin(r) * 3.5} ${Math.cos(r) * 3.5} Z`} fill={p.accent} opacity="0.65" />;
             })}
-            <text x="0" y="-24" textAnchor="middle" fontFamily="Cormorant Garamond" fontStyle="italic" fontSize="9" fill={p.accent}>N</text>
+            <text x="0" y="-24" textAnchor="middle" fontFamily="var(--font-serif)" fontStyle="italic" fontSize="9" fill={p.accent}>N</text>
           </g>
         </svg>
         {/* nodes */}

@@ -23,7 +23,7 @@ function chatEntryToCard(e: ChatEntry): GardenCardData {
 // 0742 fix: theme-aware (day mode 进入 是 night palette 的 bug).
 // day turntable = light plinth + clear vinyl (类 preview finance-drawer day).
 
-const FONT_DISPLAY = '"Cormorant Garamond", "Noto Serif JP", serif';
+const FONT_DISPLAY = 'var(--font-serif)';
 
 // ─────────────────────────────────────────────────────────────
 // palette switch
@@ -177,7 +177,7 @@ function VinylDisc({
             x={r}
             y={r - r * 0.16}
             textAnchor="middle"
-            fontFamily="Cormorant Garamond"
+            fontFamily="var(--font-serif)"
             fontStyle="italic"
             fontSize={r * 0.07}
             fill="#f5e4c2"
@@ -190,7 +190,7 @@ function VinylDisc({
             x={r}
             y={r + r * 0.05}
             textAnchor="middle"
-            fontFamily="Cormorant Garamond"
+            fontFamily="var(--font-serif)"
             fontStyle="italic"
             fontSize={r * 0.045}
             fill="#f5e4c2"
@@ -203,7 +203,7 @@ function VinylDisc({
             x={r}
             y={r + r * 0.2}
             textAnchor="middle"
-            fontFamily="Cormorant Garamond"
+            fontFamily="var(--font-serif)"
             fontStyle="italic"
             fontSize={r * 0.038}
             fill="#f5e4c2"

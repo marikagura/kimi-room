@@ -169,7 +169,7 @@ export function GardenAddForm({ onAdded }: { onAdded: () => void }) {
           fontSize: 12,
           fontStyle: "italic",
           letterSpacing: 3,
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           cursor: "pointer",
           borderRadius: 0,
         }}
@@ -195,7 +195,7 @@ export function GardenAddForm({ onAdded }: { onAdded: () => void }) {
           color: gold,
           fontStyle: "italic",
           marginBottom: 12,
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
         }}
       >
         · paste raw chat (前缀: 我: / 他: / user: / assistant:)
@@ -275,7 +275,7 @@ export function GardenAddForm({ onAdded }: { onAdded: () => void }) {
             fontSize: 10,
             fontStyle: "italic",
             letterSpacing: 2,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             cursor: "pointer",
             borderRadius: 0,
           }}
@@ -303,7 +303,7 @@ export function GardenAddForm({ onAdded }: { onAdded: () => void }) {
                 fontSize: 10,
                 fontStyle: "italic",
                 letterSpacing: 2,
-                fontFamily: '"Cormorant Garamond", serif',
+                fontFamily: 'var(--font-serif)',
                 cursor: autoBusy ? "wait" : "pointer",
                 borderRadius: 0,
                 opacity: autoBusy ? 0.5 : 1,
@@ -387,7 +387,7 @@ export function GardenAddForm({ onAdded }: { onAdded: () => void }) {
             fontSize: 11,
             fontStyle: "italic",
             letterSpacing: 3,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             cursor: busy ? "wait" : "pointer",
             borderRadius: 0,
             opacity: !hasContent ? 0.4 : 1,
@@ -413,7 +413,7 @@ export function GardenAddForm({ onAdded }: { onAdded: () => void }) {
             fontSize: 11,
             fontStyle: "italic",
             letterSpacing: 3,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             cursor: "pointer",
             borderRadius: 0,
           }}

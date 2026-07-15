@@ -10,7 +10,7 @@ import { getTheme, ROSE_GOTHIC_DAY } from "@/lib/day-theme";
 // 字体一致 const · 跟 memory-review 同 stack (owner 0208 catch · 中文 Songti SC
 // primary 跟 Cormorant italic 古朴 align, Noto Serif SC/JP 自托 fallback)
 const FONT_STACK =
-  '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif';
+  'var(--font-serif)';
 
 const NIGHT_P = MUCHA_COLORWAYS.ivory.dark;
 const DAY_P = {

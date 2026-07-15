@@ -61,7 +61,7 @@ export function ArchWindow({
             <>
               <rect x="0" y="0" width="168" height="252" fill={`url(#${gradId})`} />
               {placeholderLabel && (
-                <text x="84" y="120" textAnchor="middle" fontFamily="'Cormorant Garamond',serif" fontStyle="italic" fontSize="8" fill={gold} opacity="0.55" letterSpacing="2">
+                <text x="84" y="120" textAnchor="middle" fontFamily="var(--font-serif)" fontStyle="italic" fontSize="8" fill={gold} opacity="0.55" letterSpacing="2">
                   {placeholderLabel}
                 </text>
               )}

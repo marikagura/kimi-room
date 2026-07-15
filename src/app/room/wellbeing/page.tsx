@@ -52,7 +52,7 @@ export default function WellbeingPage() {
             fontSize: 28,
             color: G.ink,
             letterSpacing: 4,
-            fontFamily: "Cormorant Garamond, serif",
+            fontFamily: "var(--font-serif)",
             marginTop: 6,
             fontStyle: "italic",
           }}
@@ -125,7 +125,7 @@ export default function WellbeingPage() {
             letterSpacing: 3,
             color: G.accent,
             fontStyle: "italic",
-            fontFamily: "Cormorant Garamond, serif",
+            fontFamily: "var(--font-serif)",
             textDecoration: "none",
             opacity: 0.85,
           }}

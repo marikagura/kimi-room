@@ -78,7 +78,7 @@ export function RoomBackBtn({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+        fontFamily: 'var(--font-serif)',
       }}
     >
       <span style={{ fontSize: 20, lineHeight: 1, marginTop: -2 }}>‹</span>

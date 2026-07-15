@@ -153,7 +153,7 @@ export async function Footer() {
             fontSize: 11,
             letterSpacing: 3,
             fontStyle: "italic",
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
           }}
         >
           {label}

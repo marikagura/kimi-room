@@ -106,7 +106,7 @@ export function KeepsakesGrid({ P, isDay = false }: { P: KimiPalette; isDay?: bo
             background: "transparent",
             border: `0.6px dashed ${P.accent}`,
             color: P.accent,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             letterSpacing: 3,
             fontSize: 11,

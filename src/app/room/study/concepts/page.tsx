@@ -46,7 +46,7 @@ export default async function ConceptsPage() {
                     <span
                       style={{
                         fontSize: 15,
-                        fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+                        fontFamily: 'var(--font-serif)',
                         color: P.ink,
                         fontWeight: 500,
                       }}

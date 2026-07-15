@@ -76,7 +76,7 @@ export default async function Loading() {
           fontSize: 12,
           fontStyle: "italic",
           letterSpacing: 3,
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           border: `0.5px solid ${pillBorder}`,
           boxShadow: pillShadow,
           zIndex: 9999,

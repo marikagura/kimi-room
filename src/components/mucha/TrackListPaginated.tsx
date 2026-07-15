@@ -82,7 +82,7 @@ export function TrackListPaginated() {
                   style={{
                     fontSize: 14,
                     color: p.ink,
-                    fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+                    fontFamily: 'var(--font-serif)',
                     letterSpacing: 0.5,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -133,7 +133,7 @@ export function TrackListPaginated() {
             marginBottom: 6,
             color: p.mute,
             fontSize: 12,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
           }}
         >
           <button

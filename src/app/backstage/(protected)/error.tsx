@@ -18,7 +18,7 @@ export default function BackstageError({
     <main
       className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24"
       style={{
-        fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+        fontFamily: 'var(--font-serif)',
         color: "#f0dcb8",
         background: "#0a0506",
         minHeight: "100svh",
@@ -36,7 +36,7 @@ export default function BackstageError({
         有没有 <code style={{ color: "#d4b886", padding: "0 4px" }}>?pgbouncer=true&amp;connection_limit=1</code>。
       </p>
       {error.digest && (
-        <p style={{ marginTop: 16, fontSize: 9, color: "rgba(240,220,184,0.35)", fontFamily: "monospace" }}>
+        <p style={{ marginTop: 16, fontSize: 9, color: "rgba(240,220,184,0.35)", fontFamily: "var(--font-mono)" }}>
           digest: {error.digest}
         </p>
       )}
@@ -52,7 +52,7 @@ export default function BackstageError({
             color: "#d4b886",
             background: "transparent",
             cursor: "pointer",
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             textTransform: "uppercase",
           }}
         >

@@ -51,7 +51,7 @@ export function ArchitectureDiagram({
           justifyContent: "center",
           flexDirection: "column",
           gap: 12,
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           color: "rgba(232,220,180,0.5)",
           fontStyle: "italic",
           textAlign: "center",
@@ -78,7 +78,7 @@ export function ArchitectureDiagram({
           key={label}
           x={20}
           y={LAYER_Y[i] + BOX_H / 2 + 4}
-          fontFamily="'Cormorant Garamond', serif"
+          fontFamily="var(--font-serif)"
           fontSize={10}
           fontStyle="italic"
           letterSpacing="3"
@@ -124,7 +124,7 @@ export function ArchitectureDiagram({
           <text
             x={COL_X[n.col] + 12}
             y={LAYER_Y[n.layer] + 22}
-            fontFamily="'Cormorant Garamond', serif"
+            fontFamily="var(--font-serif)"
             fontSize={13}
             fontWeight={600}
             fill="#1d150d"
@@ -136,7 +136,7 @@ export function ArchitectureDiagram({
             <text
               x={COL_X[n.col] + 12}
               y={LAYER_Y[n.layer] + 38}
-              fontFamily="'Cormorant Garamond', serif"
+              fontFamily="var(--font-serif)"
               fontSize={9.5}
               fontStyle="italic"
               fill="#1d150d"

@@ -85,7 +85,7 @@ export default function BackstageSettings() {
           placeholder={`例: 你是 {{char}}, {{user}} 的恋人 / 助手. 性格温柔, 喜欢看月亮.\n保持对话亲密 · 用简短中文回复.\n...`}
           rows={16}
           className={`${inputBg} w-full mt-4 p-4 text-[12px] text-muted-grey font-mono leading-relaxed rounded resize-y focus:outline-none focus:border-muted-gold/60`}
-          style={{ fontFamily: "ui-monospace, monospace" }}
+          style={{ fontFamily: "var(--font-mono)" }}
         />
         <div className="mt-2 text-[10px] text-muted-grey/60">
           {sp.length} 字 · 留空 = 不注入系统提示词

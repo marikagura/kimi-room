@@ -22,8 +22,21 @@
   --color-text: #d8d0c8;
   --color-muted-grey: #8a8a8a;
 
-  --font-serif: var(--font-cormorant), var(--font-noto-serif-jp), Georgia, serif;
-  --font-sans: var(--font-noto-sans-jp), system-ui, sans-serif;
+  /* 语义字体 token — 全站 UI 文本唯一真源. Tailwind class (font-serif /
+     font-sans / font-mono) 和 inline style 的 var(--font-*) 都指到这里.
+     serif 里 SC 排在 JP 前 — 简体字形优先, 假名由 JP 接; 没有 SC 时
+     「设」这类简化字会穿透到系统兜底, 和相邻字渲染成两种字体.
+     双语细排 (ephemera / atlas 的纸面) 直接用 :root 低层 token 分开控制. */
+  --font-serif: "Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong",
+    "Noto Serif JP", Georgia, serif;
+  /* 中文优先衬线 — 中文标题/正文不吃 Cormorant 的拉丁与数字字形
+     (乐谱中文标题 / 记忆卡 / 账目标签这类) */
+  --font-serif-cn: "Noto Serif SC", "Songti SC", "STSong", "Noto Serif JP",
+    serif;
+  --font-sans: "Noto Sans JP", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    monospace;
 }
 
 html,

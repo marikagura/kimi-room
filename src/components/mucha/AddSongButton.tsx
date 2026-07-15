@@ -87,7 +87,7 @@ export function AddSongButton({
           color: P.mute,
           background: "transparent",
           cursor: "pointer",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
         }}
       >
         ＋ 加歌{queue.length > 0 && ` (${queue.length})`}
@@ -118,7 +118,7 @@ export function AddSongButton({
               padding: "28px 20px 40px",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+              fontFamily: 'var(--font-serif)',
               borderTop: `0.5px solid ${P.hair}`,
             }}
           >
@@ -187,7 +187,7 @@ export function AddSongButton({
                   fontSize: 11,
                   letterSpacing: 3,
                   cursor: title.trim() ? "pointer" : "default",
-                  fontFamily: '"Cormorant Garamond", serif',
+                  fontFamily: 'var(--font-serif)',
                 }}
               >
                 ✦ 加
@@ -226,7 +226,7 @@ export function AddSongButton({
                       <div
                         style={{
                           fontSize: 12,
-                          fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+                          fontFamily: 'var(--font-serif)',
                           color: P.ink,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -275,7 +275,7 @@ function fieldStyle(P: { ink: string; hair: string; mute: string }): React.CSSPr
     padding: "8px 2px",
     color: P.ink,
     fontSize: 13,
-    fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+    fontFamily: 'var(--font-serif)',
     outline: "none",
   };
 }

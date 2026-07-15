@@ -191,7 +191,7 @@ export function ActiveStateCard({
               fontWeight: 500,
               color: p.ink,
               fontFamily:
-                'var(--font-noto-serif-sc), "Songti SC", "Noto Serif JP", serif',
+                'var(--font-serif-cn)',
             }}
           >
             {title}
@@ -204,7 +204,7 @@ export function ActiveStateCard({
               lineHeight: 1.65,
               whiteSpace: "pre-line",
               fontFamily:
-                'var(--font-noto-serif-sc), "Songti SC", "Noto Serif JP", serif',
+                'var(--font-serif-cn)',
             }}
           >
             {content}

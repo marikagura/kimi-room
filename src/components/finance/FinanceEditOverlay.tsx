@@ -109,7 +109,7 @@ export function FinanceEditOverlay({
           color: P.accent,
           fontSize: 15,
           cursor: "pointer",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
@@ -145,7 +145,7 @@ export function FinanceEditOverlay({
               color: P.ink,
               padding: "22px 22px 24px",
               borderRadius: 12,
-              fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif',
+              fontFamily: 'var(--font-serif)',
             }}
           >
             <div
@@ -337,7 +337,7 @@ function primaryBtn(P: KimiPalette): React.CSSProperties {
     background: `${P.accent}1a`,
     color: P.accent,
     cursor: "pointer",
-    fontFamily: '"Cormorant Garamond", serif',
+    fontFamily: 'var(--font-serif)',
     fontStyle: "italic",
   };
 }
@@ -351,7 +351,7 @@ function ghostBtn(P: KimiPalette): React.CSSProperties {
     background: "transparent",
     color: P.mute,
     cursor: "pointer",
-    fontFamily: '"Cormorant Garamond", serif',
+    fontFamily: 'var(--font-serif)',
     fontStyle: "italic",
   };
 }

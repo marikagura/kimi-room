@@ -18,7 +18,7 @@ export default async function StudyPage() {
             fontSize: 24,
             color: P.ink,
             letterSpacing: 4,
-            fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+            fontFamily: 'var(--font-serif)',
           }}
         >
           书桌
@@ -49,7 +49,7 @@ export default async function StudyPage() {
           }}
         >
           <div>
-            <div style={{ fontSize: 15, fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif', color: P.ink }}>
+            <div style={{ fontSize: 15, fontFamily: 'var(--font-serif)', color: P.ink }}>
               论文
             </div>
             <div style={{ fontSize: 10, color: P.mute, fontStyle: "italic", marginTop: 2 }}>

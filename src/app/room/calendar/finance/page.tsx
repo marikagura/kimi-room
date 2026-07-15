@@ -330,7 +330,7 @@ function StandingRoseGarden({
             <div
               data-cat-i={i}
               data-cat-field="name"
-              style={{ fontFamily: '"Noto Serif SC", "Songti SC", "Cormorant Garamond", serif', fontSize: 12, color: labelInk, letterSpacing: 0.5, lineHeight: 1.1 }}
+              style={{ fontFamily: 'var(--font-serif-cn)', fontSize: 12, color: labelInk, letterSpacing: 0.5, lineHeight: 1.1 }}
             >
               {d.cat}
             </div>
@@ -349,7 +349,7 @@ function StandingRoseGarden({
             data-cat-field="amt"
             style={{
               position: "absolute", top: tipY - roseSize * 0.7 - 18, left: x - 28, width: 56,
-              textAlign: "center", fontFamily: '"Cormorant Garamond", serif', fontStyle: "italic",
+              textAlign: "center", fontFamily: 'var(--font-serif)', fontStyle: "italic",
               fontSize: 10, color: muteInk, letterSpacing: 0.5,
             }}
           >
@@ -386,7 +386,7 @@ function Stamp({ kind, isDay, index }: { kind: Envelope["kind"]; isDay: boolean;
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           fontStyle: "italic",
           fontSize: 9,
           color: ink,
@@ -453,7 +453,7 @@ function EnvelopeCard({ env, isDay, index }: { env: Envelope; isDay: boolean; in
         data-env-field="label"
         style={{
           marginTop: 8,
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           fontStyle: "italic",
           fontSize: 11,
           color: accent,
@@ -469,7 +469,7 @@ function EnvelopeCard({ env, isDay, index }: { env: Envelope; isDay: boolean; in
         data-env-field="amount"
         style={{
           marginTop: 14,
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           fontSize: 38,
           color: ink,
           letterSpacing: 0.5,
@@ -484,7 +484,7 @@ function EnvelopeCard({ env, isDay, index }: { env: Envelope; isDay: boolean; in
       <div
         style={{
           marginTop: 4,
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           fontStyle: "italic",
           fontSize: 10,
           color: mute,
@@ -506,7 +506,7 @@ function EnvelopeCard({ env, isDay, index }: { env: Envelope; isDay: boolean; in
             justifyContent: "space-between",
             padding: "5px 0",
             borderBottom: i < env.transactions.length - 1 ? `0.4px solid ${hair}` : "none",
-            fontFamily: '"Noto Serif SC", "Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif-cn)',
             fontSize: 11.5,
             color: inkSoft,
           }}
@@ -514,7 +514,7 @@ function EnvelopeCard({ env, isDay, index }: { env: Envelope; isDay: boolean; in
           <div style={{ display: "flex", gap: 10, minWidth: 0, flex: 1 }}>
             <span
               style={{
-                fontFamily: '"Cormorant Garamond", serif',
+                fontFamily: 'var(--font-serif)',
                 fontStyle: "italic",
                 fontSize: 9.5,
                 color: mute,
@@ -529,7 +529,7 @@ function EnvelopeCard({ env, isDay, index }: { env: Envelope; isDay: boolean; in
           </div>
           <span
             style={{
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
               color: ink,
               fontSize: 12,
               flexShrink: 0,
@@ -670,7 +670,7 @@ function MonthSelector({
               border: `0.5px solid ${isActive ? accent : hair}`,
               background: isActive ? activeBg : "transparent",
               color: isActive ? accent : mute,
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
               fontStyle: "italic",
               fontSize: 12,
               letterSpacing: 1,
@@ -760,7 +760,7 @@ function TabBar({
               borderRadius: 100,
               background: isActive ? activeBg : "transparent",
               color,
-              fontFamily: '"Noto Serif SC", "Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif-cn)',
               fontSize: 13,
               letterSpacing: 4,
               textDecoration: "none",
@@ -825,7 +825,7 @@ export default async function FinancePage({
       <div style={{ textAlign: "center", marginTop: 24 }}>
         <div
           style={{
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             fontSize: 38,
             color: P.ink,
@@ -884,7 +884,7 @@ export default async function FinancePage({
       >
         <div
           style={{
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             fontSize: 12,
             color: P.mute,

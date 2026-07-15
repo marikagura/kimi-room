@@ -165,7 +165,7 @@ function autoTheme(): ChatTheme {
 }
 
 const FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Serif SC", "Helvetica Neue", system-ui, sans-serif';
+  'var(--font-sans)';
 
 // ============================================
 // mock seed (Phase 1 — 等接 backend)
@@ -1420,7 +1420,7 @@ function ModelSwitcher({
                         padding: "5px 8px",
                         fontSize: 12,
                         fontFamily:
-                          "ui-monospace, SFMono-Regular, Menlo, monospace",
+                          'var(--font-mono)',
                         color: isActive ? p.accent : p.inkSoft,
                         background: isActive ? `${p.accent}1a` : "transparent",
                         border: "none",
@@ -1666,7 +1666,7 @@ function MessageItem({
                       lineHeight: 1.55,
                       color: p.inkSoft,
                       fontFamily:
-                        "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        'var(--font-mono)',
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-word",
                       opacity: 0.85,

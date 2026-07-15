@@ -15,7 +15,7 @@ const STORAGE_KEY = "kimi-study-categories";
 const FOX_KEY = "kimi-study-fox-categories";
 
 const FONT_STACK =
-  '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif';
+  'var(--font-serif)';
 
 function loadCategories(): string[] {
   try {

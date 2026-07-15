@@ -191,7 +191,7 @@ export function MemoryCard({
             fontWeight: 500,
             color: p.ink,
             fontFamily:
-              'var(--font-noto-serif-sc), "Songti SC", "Noto Serif JP", serif',
+              'var(--font-serif-cn)',
           }}
         >
           {title}
@@ -225,13 +225,13 @@ export function MemoryCard({
             fontSize: 13.5,
             lineHeight: 1.75,
             fontFamily:
-              '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif',
+              'var(--font-serif)',
           }}
         >
           <span
             style={{
               float: "left",
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
               fontSize: 38,
               lineHeight: 0.85,
               fontWeight: 500,

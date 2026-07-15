@@ -129,7 +129,7 @@ export default function PapersClient({
           {p.pinned && <StarMark color={col} size={15} />}
           <Pips n={p.importance} color={col} mute={P.hair} />
         </div>
-        <div style={{ fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif', fontSize: 16, color: P.ink, lineHeight: 1.3, margin: "7px 0" }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: P.ink, lineHeight: 1.3, margin: "7px 0" }}>
           {p.title}
         </div>
         {p.axis && (
@@ -141,7 +141,7 @@ export default function PapersClient({
         )}
         <div style={{ display: "flex", gap: 8 }}>
           <span style={{ flexShrink: 0, fontSize: 10.5, letterSpacing: 2, color: P.accent, paddingTop: 2, width: 16 }}>知</span>
-          <div style={{ fontFamily: '"Noto Serif SC", serif', fontSize: 13, color: P.mute, lineHeight: 1.5 }}>
+          <div style={{ fontFamily: 'var(--font-serif-cn)', fontSize: 13, color: P.mute, lineHeight: 1.5 }}>
             {firstSentence(p.knowledge)}
           </div>
         </div>
@@ -237,7 +237,7 @@ function Drawer({ p, theme, P, onClose }: { p: Paper; theme: KimiTheme; P: KimiP
             )}
           </div>
 
-          <div style={{ fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif', fontSize: 21, color: P.ink, lineHeight: 1.3, fontStyle: "italic" }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, color: P.ink, lineHeight: 1.3, fontStyle: "italic" }}>
             {p.title}
           </div>
           <div style={{ fontStyle: "italic", fontSize: 12.5, color: P.mute, margin: "6px 0 0", ...onum }}>
@@ -254,14 +254,14 @@ function Drawer({ p, theme, P, onClose }: { p: Paper; theme: KimiTheme; P: KimiP
           </div>
 
           <div style={{ fontSize: 10, letterSpacing: 2, color: P.accent, marginBottom: 5, textTransform: "uppercase" }}>知识点 · knowledge</div>
-          <div style={{ fontFamily: '"Noto Serif SC", serif', fontSize: 14.5, color: P.ink, lineHeight: 1.7, marginBottom: 18 }}>{p.knowledge}</div>
+          <div style={{ fontFamily: 'var(--font-serif-cn)', fontSize: 14.5, color: P.ink, lineHeight: 1.7, marginBottom: 18 }}>{p.knowledge}</div>
 
           {p.relevance && (
             <>
               <div style={{ fontSize: 10, letterSpacing: 2, color: P.accent, marginBottom: 5, textTransform: "uppercase" }}>为什么相关 · relevance</div>
               <div style={{ position: "relative", paddingLeft: 13, marginBottom: 18 }}>
                 <div style={{ position: "absolute", left: 0, top: 2, bottom: 2, width: 2, background: P.accent, borderRadius: 2 }} />
-                <div style={{ fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif', fontStyle: "italic", fontSize: 14, color: P.mute, lineHeight: 1.6 }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontStyle: "italic", fontSize: 14, color: P.mute, lineHeight: 1.6 }}>
                   {p.relevance}
                 </div>
               </div>

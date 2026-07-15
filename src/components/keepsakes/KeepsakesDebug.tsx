@@ -90,7 +90,7 @@ export function KeepsakesDebug({ P }: { P: KimiPalette }) {
           background: "transparent",
           border: `0.4px solid ${P.hair}`,
           fontStyle: "italic",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           cursor: "pointer",
         }}
       >
@@ -106,7 +106,7 @@ export function KeepsakesDebug({ P }: { P: KimiPalette }) {
             border: `0.4px solid ${P.hair}`,
             fontSize: 10,
             color: P.ink,
-            fontFamily: 'ui-monospace, "SF Mono", monospace',
+            fontFamily: 'var(--font-mono)',
             lineHeight: 1.5,
           }}
         >

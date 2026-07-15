@@ -42,7 +42,7 @@ export default async function ConceptPage({
               fontSize: 30,
               color: P.ink,
               letterSpacing: 4,
-              fontFamily: 'var(--font-noto-serif-sc), "Songti SC", "Noto Serif JP", serif',
+              fontFamily: 'var(--font-serif-cn)',
               fontWeight: 700,
             }}
           >
@@ -83,7 +83,7 @@ export default async function ConceptPage({
             borderBottom: `0.6px solid ${P.accent}`,
             fontSize: 13,
             color: P.ink,
-            fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             lineHeight: 1.7,
             textAlign: "center",
@@ -132,7 +132,7 @@ function Section({
         style={{
           fontSize: 12,
           color: P.ink,
-          fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+          fontFamily: 'var(--font-serif)',
           lineHeight: 1.85,
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",

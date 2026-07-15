@@ -323,7 +323,7 @@ export function KeepsakeCard({
             fontSize: 11,
             color: P.ink,
             fontFamily:
-              '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+              'var(--font-serif)',
             lineHeight: 1.2,
           }}
         />
@@ -368,7 +368,7 @@ export function KeepsakeCard({
               fontSize: 7,
               color: P.mute,
               fontStyle: "italic",
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
               opacity: 0.7,
               pointerEvents: "none",
             }}

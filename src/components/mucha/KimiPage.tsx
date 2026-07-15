@@ -24,7 +24,7 @@ export function KimiPage({
         background: P.bg,
         color: P.ink,
         fontFamily:
-          '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+          'var(--font-serif)',
         minHeight: "100svh",
         ...style,
       }}
@@ -108,7 +108,7 @@ export function KimiTopNav({
             fontSize: 11,
             letterSpacing: 3,
             color: P.ink,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             textTransform: "uppercase",
           }}
@@ -121,7 +121,7 @@ export function KimiTopNav({
               fontSize: 9,
               color: P.mute,
               fontStyle: "italic",
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
               letterSpacing: 1,
             }}
           >

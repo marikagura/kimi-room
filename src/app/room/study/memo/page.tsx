@@ -50,7 +50,7 @@ export default async function MemoPage() {
                 <div
                   style={{
                     fontSize: 15,
-                    fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+                    fontFamily: 'var(--font-serif)',
                     color: P.ink,
                     marginTop: 4,
                   }}

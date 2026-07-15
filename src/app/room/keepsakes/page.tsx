@@ -25,7 +25,7 @@ export default async function KeepsakesPage() {
             letterSpacing: 2,
             marginTop: 2,
             fontFamily:
-              '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+              'var(--font-serif)',
           }}
         >
           keepsakes
@@ -37,7 +37,7 @@ export default async function KeepsakesPage() {
             color: P.mute,
             fontStyle: "italic",
             marginTop: 2,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             textTransform: "uppercase",
           }}
         >

@@ -64,7 +64,7 @@ export default function Error({
       <HourglassSpilled color={GOLD} />
       <div
         style={{
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           fontSize: 56,
           fontWeight: 300,
           fontStyle: "italic",
@@ -77,7 +77,7 @@ export default function Error({
       </div>
       <div
         style={{
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           fontStyle: "italic",
           fontSize: 18,
           marginTop: 12,
@@ -95,7 +95,7 @@ export default function Error({
           color: GOLD,
           letterSpacing: 3,
           fontStyle: "italic",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           background: "transparent",
           border: `0.4px solid ${GOLD}`,
           padding: "8px 16px",

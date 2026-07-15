@@ -74,7 +74,7 @@ export default async function WellbeingReportPage() {
               {m.label}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 6 }}>
-              <div style={{ fontSize: 28, color: G.ink, fontFamily: "Cormorant Garamond, serif", lineHeight: 1 }}>
+              <div style={{ fontSize: 28, color: G.ink, fontFamily: "var(--font-serif)", lineHeight: 1 }}>
                 {m.value}
               </div>
               <div style={{ fontSize: 10, color: G.mute, fontStyle: "italic" }}>{m.unit}</div>

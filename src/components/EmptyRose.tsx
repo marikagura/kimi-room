@@ -56,7 +56,7 @@ export function EmptyRose({ message, palette = "ivory", size = 28 }: Props) {
           color: ink,
           fontStyle: "italic",
           letterSpacing: 2,
-          fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif',
+          fontFamily: 'var(--font-serif)',
         }}
       >
         {message}

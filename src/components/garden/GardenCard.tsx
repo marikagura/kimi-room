@@ -246,7 +246,7 @@ export function GardenCard({
             cursor: "pointer",
             padding: "4px 0",
             fontStyle: "italic",
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             letterSpacing: 2,
           }}
         >
@@ -264,7 +264,7 @@ export function GardenCard({
             fontStyle: "italic",
             color: inkMute,
             lineHeight: 1.6,
-            fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif',
+            fontFamily: 'var(--font-serif)',
           }}
         >
           {card.note}
@@ -288,7 +288,7 @@ export function GardenCard({
             color: goldAccent,
             fontStyle: "italic",
             textTransform: "uppercase",
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
           }}
         >
           · {sourceLabel}
@@ -299,7 +299,7 @@ export function GardenCard({
             color: inkMute,
             fontStyle: "italic",
             letterSpacing: 1,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
           }}
         >
           {ts}

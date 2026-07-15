@@ -39,7 +39,7 @@ export function ThemeToggleLink({
           color,
           opacity: 0.65,
           fontStyle: "italic",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           cursor: "pointer",
         }}
       >

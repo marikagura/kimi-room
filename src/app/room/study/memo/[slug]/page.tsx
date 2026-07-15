@@ -39,7 +39,7 @@ export default async function MemoDetailPage({
             fontSize: 22,
             color: P.ink,
             lineHeight: 1.3,
-            fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+            fontFamily: 'var(--font-serif)',
             fontWeight: 500,
           }}
         >
@@ -69,7 +69,7 @@ export default async function MemoDetailPage({
             borderBottom: `0.6px solid ${P.accent}`,
             fontSize: 13,
             color: P.ink,
-            fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             lineHeight: 1.7,
             textAlign: "center",
@@ -83,7 +83,7 @@ export default async function MemoDetailPage({
           style={{
             fontSize: 12,
             color: P.ink,
-            fontFamily: '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif',
+            fontFamily: 'var(--font-serif)',
             lineHeight: 1.85,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",

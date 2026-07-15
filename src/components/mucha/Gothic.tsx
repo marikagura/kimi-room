@@ -119,7 +119,7 @@ export function Candle({
           color: G.mute,
           marginTop: 3,
           fontStyle: "italic",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
         }}
       >
         {label}
@@ -173,7 +173,7 @@ export function GothicPage({
       style={{
         background: G.bg,
         color: G.ink,
-        fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+        fontFamily: 'var(--font-serif)',
         minHeight: "100svh",
       }}
     >

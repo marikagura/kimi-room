@@ -9,7 +9,7 @@ import { TRACKS, extractNeteaseId } from "@/lib/tracks-data";
 import { getTheme, ROSE_GOTHIC_DAY } from "@/lib/day-theme";
 
 const FONT_STACK =
-  '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif';
+  'var(--font-serif)';
 
 // V2 owner 0518 2203 catch · 之前 hardcoded ivory.light 不响应 cookie ·
 // 改 theme-aware (day 玫瑰哥特 ivory · night ivory.dark obsidian).
@@ -106,7 +106,7 @@ export default async function NowPlayingPage({
                 marginTop: 6,
                 color: p.ink,
                 letterSpacing: 2,
-                fontFamily: '"Cormorant Garamond", "Noto Serif JP", serif',
+                fontFamily: 'var(--font-serif)',
                 fontStyle: "italic",
                 fontWeight: 400,
               }}

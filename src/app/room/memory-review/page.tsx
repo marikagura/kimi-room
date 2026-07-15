@@ -299,7 +299,7 @@ export default function MemoryReviewPage() {
         background: p.pageBgGradient,
         color: p.ink,
         fontFamily:
-          '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif',
+          'var(--font-serif)',
         padding: "48px 20px 80px",
         position: "relative",
       }}
@@ -339,7 +339,7 @@ export default function MemoryReviewPage() {
                   lineHeight: 1.05,
                   color: p.ink,
                   fontFamily:
-                    'var(--font-noto-serif-sc), "Songti SC", "STSong", "Noto Serif JP", serif',
+                    'var(--font-serif-cn)',
                   display: "inline-block",
                 }}
               >
@@ -798,7 +798,7 @@ function SectionHeader({
           fontWeight: 700,
           letterSpacing: 4,
           color: palette.ink,
-          fontFamily: 'var(--font-noto-serif-sc), "Songti SC", serif',
+          fontFamily: 'var(--font-serif-cn)',
         }}
       >
         {cn}

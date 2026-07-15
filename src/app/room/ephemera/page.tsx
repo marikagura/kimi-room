@@ -33,7 +33,7 @@ export default async function EphemeraPage() {
             gap: 6,
             color: mute,
             textDecoration: "none",
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: "italic",
             fontSize: 13,
             letterSpacing: 1,

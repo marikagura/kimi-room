@@ -20,7 +20,7 @@ const TRACK_TAG_STORAGE = "kimi-playlist-track-tags";
 // placeholder, fork 后 用户 上传 own 头像 to BlobStore + swap src.
 const SELF_AVATAR = "/icons/rose-bloom-3-full.png";
 const FONT_STACK =
-  '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif';
+  'var(--font-serif)';
 
 const NIGHT_P = MUCHA_COLORWAYS.ivory.dark;
 const DAY_P = {

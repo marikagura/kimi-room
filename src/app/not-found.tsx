@@ -99,7 +99,7 @@ export default async function NotFound() {
           <LoneRose color={ROSE} mute={MUTE_DAY} />
           <div
             style={{
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
               fontSize: 84,
               fontWeight: 300,
               fontStyle: "italic",
@@ -117,7 +117,7 @@ export default async function NotFound() {
           <ThreePhaseMoon />
           <div
             style={{
-              fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif',
+              fontFamily: 'var(--font-serif)',
               fontStyle: "italic",
               fontSize: 22,
               color: GOLD,
@@ -130,7 +130,7 @@ export default async function NotFound() {
       )}
       <div
         style={{
-          fontFamily: '"Cormorant Garamond", "Noto Serif SC", serif',
+          fontFamily: 'var(--font-serif)',
           fontStyle: "italic",
           fontSize: 16,
           marginTop: 14,
@@ -147,7 +147,7 @@ export default async function NotFound() {
           color: GOLD,
           letterSpacing: 3,
           fontStyle: "italic",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           borderBottom: `0.6px solid ${GOLD}`,
           paddingBottom: 2,
           textDecoration: "none",

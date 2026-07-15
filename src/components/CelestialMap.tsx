@@ -77,7 +77,7 @@ export function CelestialMap({ className = "" }: { className?: string }) {
       />
 
       {/* cardinal marks */}
-      <g fontSize="9" fontFamily="serif" fontStyle="italic" fill="currentColor" opacity="0.55">
+      <g fontSize="9" fontFamily="var(--font-serif)" fontStyle="italic" fill="currentColor" opacity="0.55">
         <text x="200" y="14" textAnchor="middle">N</text>
         <text x="200" y="392" textAnchor="middle">S</text>
         <text x="8" y="204" textAnchor="start">W</text>

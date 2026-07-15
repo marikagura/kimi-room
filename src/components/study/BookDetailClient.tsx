@@ -15,7 +15,7 @@ import { getCharName, tmpl } from "@/lib/template";
 // 读后感 inline · retry button regen.
 
 const FONT_STACK =
-  '"Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", serif';
+  'var(--font-serif)';
 
 const STATUS_LABEL: Record<string, string> = {
   reading: "READING",

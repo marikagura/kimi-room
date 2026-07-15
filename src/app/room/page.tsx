@@ -65,7 +65,7 @@ export default async function RoomPage({
       style={{
         background: p.bg,
         color: p.ink,
-        fontFamily: '"Cormorant Garamond","Noto Serif JP",serif',
+        fontFamily: 'var(--font-serif)',
       }}
     >
       {/* ambient animations — 月相 idle slow rotate + avatars breathing */}
@@ -223,7 +223,7 @@ export default async function RoomPage({
                     fontSize: 22,
                     color: p.ink,
                     letterSpacing: 0.5,
-                    fontFamily: '"Cormorant Garamond", serif',
+                    fontFamily: 'var(--font-serif)',
                     fontWeight: 400,
                   }}
                 >
@@ -265,7 +265,7 @@ export default async function RoomPage({
                 letterSpacing: 3,
                 color: p.ink,
                 fontStyle: "italic",
-                fontFamily: '"Cormorant Garamond", serif',
+                fontFamily: 'var(--font-serif)',
                 textDecoration: "none",
                 opacity: 0.82,
               }}
@@ -282,7 +282,7 @@ export default async function RoomPage({
               letterSpacing: 3,
               color: p.ink,
               fontStyle: "italic",
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
               textDecoration: "none",
               opacity: 1,
             }}

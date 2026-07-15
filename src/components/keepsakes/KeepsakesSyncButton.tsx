@@ -79,7 +79,7 @@ export function KeepsakesSyncButton({ P }: { P: KimiPalette }) {
           fontSize: 10,
           color: P.mute,
           fontStyle: "italic",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           letterSpacing: 1,
           display: "inline-flex",
           alignItems: "center",
@@ -91,7 +91,7 @@ export function KeepsakesSyncButton({ P }: { P: KimiPalette }) {
           keys={[LAST_SYNC_KEY]}
           filename="kimi-keepsakes-sync"
           color={P.mute}
-          fontFamily='"Cormorant Garamond", serif'
+          fontFamily='var(--font-serif)'
         />
       </span>
       <button
@@ -107,7 +107,7 @@ export function KeepsakesSyncButton({ P }: { P: KimiPalette }) {
           background: `${P.accent}1a`,
           color: P.accent,
           cursor: busy ? "wait" : "pointer",
-          fontFamily: '"Cormorant Garamond", serif',
+          fontFamily: 'var(--font-serif)',
           textTransform: "uppercase",
           opacity: busy ? 0.5 : 1,
         }}

@@ -163,7 +163,7 @@ function EditModal({
           color: G.ink,
           border: `0.6px solid ${G.navBorder}`,
           padding: "22px 24px 20px",
-          fontFamily: '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif',
+          fontFamily: 'var(--font-serif)',
         }}
       >
         <div

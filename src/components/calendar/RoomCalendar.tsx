@@ -182,7 +182,7 @@ export function RoomCalendar({
         background: p.pageBg,
         color: p.ink,
         fontFamily:
-          '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif',
+          'var(--font-serif)',
         padding: "32px 14px 56px",
       }}
     >
@@ -253,7 +253,7 @@ export function RoomCalendar({
                   fontSize: 38,
                   margin: 0,
                   fontStyle: "italic",
-                  fontFamily: '"Cormorant Garamond", serif',
+                  fontFamily: 'var(--font-serif)',
                   fontWeight: 500,
                   letterSpacing: 1,
                 }}
@@ -584,7 +584,7 @@ function DayCell({
         <span
           style={{
             fontSize: 24,
-            fontFamily: '"Cormorant Garamond", serif',
+            fontFamily: 'var(--font-serif)',
             fontStyle: isToday ? "italic" : "normal",
             fontWeight: 500,
             color: p.ink,
@@ -1368,7 +1368,7 @@ function CellEditor({
               fontStyle: "italic",
               letterSpacing: 2,
               color: p.gold,
-              fontFamily: '"Cormorant Garamond", serif',
+              fontFamily: 'var(--font-serif)',
             }}
           >
             {date}
@@ -1407,7 +1407,7 @@ function CellEditor({
                 color: p.gold,
                 fontStyle: "italic",
                 marginBottom: 6,
-                fontFamily: '"Cormorant Garamond", serif',
+                fontFamily: 'var(--font-serif)',
               }}
             >
               partner wrote · google calendar
@@ -1441,7 +1441,7 @@ function CellEditor({
                 <div style={{ flex: 1 }}>
                   <span
                     style={{
-                      fontFamily: '"Cormorant Garamond", serif',
+                      fontFamily: 'var(--font-serif)',
                       fontStyle: "italic",
                       color: p.gold,
                       marginRight: 6,

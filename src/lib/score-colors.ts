@@ -5,9 +5,9 @@
 // 颜色就 直接 edit 这个 file · 不通过 settings expose.
 
 export const SCORE_FONT_BODY =
-  '"Cormorant Garamond", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif JP", serif';
+  'var(--font-serif)';
 export const SCORE_FONT_TITLE_CN =
-  'var(--font-noto-serif-sc), "Songti SC", "STSong", "Noto Serif JP", serif';
+  'var(--font-serif-cn)';
 
 export const VALENCE_COLORS = {
   brooding: "#2e4a7a", // cobalt 深冷蓝

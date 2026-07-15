@@ -203,7 +203,7 @@ function WeekScoreSheet({ paper }: { paper: Paper }) {
               {lit && <circle cx={cx} cy={cy} r="20" strokeWidth="1" opacity="0.45" />}
               <line x1={cx + 12} y1={cy} x2={cx + 12} y2={cy - 44} strokeWidth="1.6" />
               <ellipse cx={cx} cy={cy} rx="13" ry="9.5" transform={`rotate(-18 ${cx} ${cy})`} fill={lit ? "currentColor" : "none"} strokeWidth="1.8" />
-              <text x={cx} y={top + h + 32} textAnchor="middle" fill="currentColor" stroke="none" fontFamily="'Noto Serif SC',serif" fontSize="24" fontWeight={lit ? 700 : 400}>
+              <text x={cx} y={top + h + 32} textAnchor="middle" fill="currentColor" stroke="none" fontFamily="var(--font-noto-serif-sc)" fontSize="24" fontWeight={lit ? 700 : 400}>
                 {DAYS[i]}
               </text>
             </g>
@@ -699,7 +699,7 @@ function NightSkySheet({ paper }: { paper: Paper }) {
           <circle cx={mem[0]} cy={mem[1]} r="22" strokeWidth="1" opacity="0.7" />
           <circle cx={mem[0]} cy={mem[1]} r="13" strokeWidth="1" opacity="0.4" />
           <path transform={`translate(${mem[0]} ${mem[1]}) scale(1.1)`} fill="currentColor" stroke="none" d={STAR} />
-          <text x={mem[0]} y={mem[1] - 32} textAnchor="middle" fill="currentColor" stroke="none" fontFamily="'Noto Serif SC', serif" fontSize="17" fontWeight="600">今夜之星</text>
+          <text x={mem[0]} y={mem[1] - 32} textAnchor="middle" fill="currentColor" stroke="none" fontFamily="var(--font-noto-serif-sc)" fontSize="17" fontWeight="600">今夜之星</text>
         </svg>
       </div>
       <div className="eph-sky-notes">
@@ -1536,7 +1536,7 @@ const PAPER_CSS = `
 }
 .pp-drawer-item.pp-active { border-color: rgba(128,128,128,0.65); }
 .pp-drawer-date {
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-cormorant), serif;
   font-feature-settings: "onum" 1;
   white-space: nowrap;
   opacity: 0.75;
