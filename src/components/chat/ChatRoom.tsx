@@ -5,7 +5,16 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EmptyRose } from "@/components/EmptyRose";
 import { chatStore, memoryStore } from "@/lib/stores";
-import { friendlyLLMError, isLLMConfigured, llmChat, llmGenerate, type ChatMessage as LLMChatMessage } from "@/lib/llm-client";
+import {
+  friendlyLLMError,
+  isLLMConfigured,
+  llmChat,
+  llmGenerate,
+  loadLLMSettings,
+  setActiveModel,
+  type ChatMessage as LLMChatMessage,
+  type LLMSettings,
+} from "@/lib/llm-client";
 import { buildSystemMessage, getSystemContextStats } from "@/lib/system-prompt";
 import { readCoreChat, writeCoreChat, readCoreThreads, deleteCoreChat } from "@/lib/kimi-core-client";
 import { isCoreBackend } from "@/lib/backend-mode";
@@ -34,15 +43,27 @@ type ToolEvent = {
   status: "pending" | "done" | "error";
 };
 
+// 一条 assistant 回复的一个候选 (swipe 变体). 顶层 content/thinking/cost/coreId
+// 是「当前选中变体」的镜像 — 渲染 / 存储 / core merge 全走顶层字段, swipes 只是
+// 候选池. 单变体消息不建 swipes (箭头不显示).
+type SwipeVariant = {
+  content: string;
+  thinking?: string;
+  cost?: { inTok: number; outTok: number };
+  coreId?: string;
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  thinking?: string; // extended thinking 块 (opus 4.6 reasoning)
+  thinking?: string; // extended thinking 块 (reasoning 模型)
   tools?: ToolEvent[]; // MCP tool 调用记录
   cost?: { inTok: number; outTok: number }; // token usage from the LLM response (browser-direct; USD unknown — endpoint/model price varies)
   ts: string; // ISO
   coreId?: string; // kimi-core CHAT event id (core mode) — lets retry delete the exact row cross-device
+  swipes?: SwipeVariant[]; // 重 roll 出的候选池 (含当前选中)
+  swipeIndex?: number; // 当前选中的候选下标
 };
 
 type ChatTheme = "day" | "night";
@@ -79,6 +100,8 @@ function mergeCoreRows(
       ...(prior?.thinking ? { thinking: prior.thinking } : {}),
       ...(prior?.tools ? { tools: prior.tools } : {}),
       ...(prior?.cost ? { cost: prior.cost } : {}),
+      // swipe 候选池是 local-only — core 只有选中的那条, 重建时把池带回来
+      ...(prior?.swipes ? { swipes: prior.swipes, swipeIndex: prior.swipeIndex } : {}),
     };
   });
   // Preserve unsynced optimistic messages: any local msg newer than the newest
@@ -218,6 +241,35 @@ export function ChatRoom() {
   useEffect(() => {
     threadRef.current = session.sessionId;
   }, [session.sessionId]);
+  // full session mirror — swipe 的 debounced core sync 在 timeout 里读最新 state 用
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  // ── model switcher ──
+  const [llmSettings, setLlmSettings] = useState<LLMSettings | null>(null);
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  useEffect(() => {
+    setLlmSettings(loadLLMSettings());
+  }, []);
+  // settings 页改完档案回来 (bfcache / focus) 刷新切换器数据
+  useEffect(() => {
+    const refresh = () => setLlmSettings(loadLLMSettings());
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+    };
+  }, []);
+
+  // ── streaming abort ──
+  const abortRef = useRef<AbortController | null>(null);
+
+  // ── swipe → core 时间线的 debounced 同步 ──
+  const swipeSyncTimer = useRef<number | null>(null);
+  const pendingSwipeSync = useRef(false);
 
   // load on mount
   useEffect(() => {
@@ -235,12 +287,18 @@ export function ChatRoom() {
       const newParam = searchParams.get("new");
 
       if (newParam === "1") {
-        // brand new thread, ignore localStorage
+        // brand new thread, ignore localStorage. 处理完立刻把 ?new=1 从 URL 洗掉:
+        // searchParams 引用在 dev RSC 刷新 / router refresh 时会变, effect 重跑
+        // 若还带着 new=1 会把进行中的对话再次清空 (消息发出去就消失); 刷新页面
+        // 也会再开新窗丢当前对话. replaceState 不触发 next 导航, 只改地址栏.
         setSession({
           sessionId: `session-${Date.now()}`,
           startedAt: new Date().toISOString(),
           msgs: [],
         });
+        try {
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch {}
         return;
       }
 
@@ -377,7 +435,9 @@ export function ChatRoom() {
   useEffect(() => {
     if (!isCoreBackend()) return;
     function refresh() {
-      if (busy || document.visibilityState === "hidden") return;
+      // pendingSwipeSync: 切换变体后 core 还是旧内容, 等 debounced sync 落完再拉,
+      // 否则 merge 会把刚选中的变体覆盖回旧的.
+      if (busy || pendingSwipeSync.current || document.visibilityState === "hidden") return;
       const tid = threadRef.current;
       void readCoreChat({ threadId: tid, take: 200 })
         .then((rows) => {
@@ -405,26 +465,51 @@ export function ChatRoom() {
   // actions
   // ============================================
 
-  // V2 · client-side LLM call via lib/llm-client.ts (OpenAI-format chat
-  // completion). canon V1 streamed SSE w/ thinking + tool_call/tool_result
-  // 事件; V2 简化 non-streaming · 设置 LLM key 在 /settings 后 即可 chat.
+  // Update one reply message; when it has a swipe pool, mirror the patch into
+  // the selected variant so the pool stays consistent with the top-level fields.
+  function patchReply(replyId: string, patch: Partial<SwipeVariant>) {
+    setSession((s) => ({
+      ...s,
+      msgs: s.msgs.map((m) => {
+        if (m.id !== replyId) return m;
+        const next = { ...m, ...patch };
+        if (m.swipes && m.swipeIndex != null && m.swipes[m.swipeIndex]) {
+          const sw = [...m.swipes];
+          sw[m.swipeIndex] = { ...sw[m.swipeIndex], ...patch };
+          next.swipes = sw;
+        }
+        return next;
+      }),
+    }));
+  }
+
+  // V3 · client-side LLM call via lib/llm-client.ts, SSE streaming (text +
+  // thinking deltas, 80ms flush 节流), stop button aborts. 端点拒绝流式时
+  // llm-client 自动退回非流式. 设置 LLM key 在 /settings 后 即可 chat.
   async function streamReply(msgs: ChatMessage[], replyId: string, threadId?: string) {
     if (!isLLMConfigured()) {
-      setSession((s) => ({
-        ...s,
-        msgs: s.msgs.map((m) =>
-          m.id === replyId
-            ? {
-                ...m,
-                content:
-                  "(LLM API key 没填 · 进 /backstage/settings 填 endpoint + key 才能 chat)",
-              }
-            : m,
-        ),
-      }));
+      patchReply(replyId, {
+        content:
+          "(LLM API key 没填 · 进 /backstage/settings 填 endpoint + key 才能 chat)",
+      });
       setBusy(false);
       return;
     }
+    const ac = new AbortController();
+    abortRef.current = ac;
+    // delta 累积 + 节流 flush — 每个 SSE chunk 一次 setState 太密
+    const acc = { text: "", thinking: "" };
+    let flushTimer: number | null = null;
+    const flush = () => {
+      flushTimer = null;
+      patchReply(replyId, {
+        content: acc.text,
+        thinking: acc.thinking || undefined,
+      });
+    };
+    const scheduleFlush = () => {
+      if (flushTimer == null) flushTimer = window.setTimeout(flush, 80);
+    };
     try {
       const sys = await buildSystemMessage();
       const llmMsgs: LLMChatMessage[] = [];
@@ -434,49 +519,61 @@ export function ChatRoom() {
       for (const m of msgs) {
         llmMsgs.push({ role: m.role, content: m.content });
       }
-      const r = await llmChat(llmMsgs);
+      const r = await llmChat(llmMsgs, {
+        signal: ac.signal,
+        onEvent: (e) => {
+          if (e.type === "text") acc.text += e.delta;
+          else acc.thinking += e.delta;
+          scheduleFlush();
+        },
+      });
+      if (flushTimer != null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
       const text = r.text?.trim() || "(空响应)";
-      const usage = (r.raw as { usage?: { prompt_tokens?: number; completion_tokens?: number } } | undefined)?.usage;
-      const cost = usage
-        ? { inTok: usage.prompt_tokens ?? 0, outTok: usage.completion_tokens ?? 0 }
-        : undefined;
-      setSession((s) => ({
-        ...s,
-        msgs: s.msgs.map((m) =>
-          m.id === replyId ? { ...m, content: text, cost } : m,
-        ),
-      }));
+      patchReply(replyId, {
+        content: text,
+        thinking: r.thinking || acc.thinking || undefined,
+        cost: r.usage,
+      });
       // Await the core persist before `finally` clears busy: while busy is true
       // the focus/visibility refresh bails (see its guard), so this closes the
       // window where a refresh could read core (without this reply yet) and drop
       // the just-rendered message. writeCoreChat swallows its own errors.
       if (r.text?.trim()) {
         const coreId = await writeCoreChat("assistant", r.text.trim(), threadId);
-        // tag the just-rendered reply with its core row id so retryLast can delete it
+        // tag the just-rendered reply with its core row id so regenerate can delete it
         if (coreId) {
-          setSession((s) => ({
-            ...s,
-            msgs: s.msgs.map((m) => (m.id === replyId ? { ...m, coreId } : m)),
-          }));
+          patchReply(replyId, { coreId });
         }
       }
     } catch (e) {
+      if (flushTimer != null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      if ((e as Error)?.name === "AbortError") {
+        // 手动停止: 已流出的部分保留 (不写 core — 半截回复不进跨设备时间线)
+        patchReply(replyId, {
+          content: acc.text || "(停了 · 点 retry 重新生成)",
+          thinking: acc.thinking || undefined,
+        });
+        return;
+      }
       console.error("[chat:llm]", e);
       const fe = friendlyLLMError(e);
-      setSession((s) => ({
-        ...s,
-        msgs: s.msgs.map((m) =>
-          m.id === replyId
-            ? {
-                ...m,
-                content: `⚠ ${fe.title}\n\n${fe.detail}\n\n→ ${fe.hint}`,
-              }
-            : m,
-        ),
-      }));
+      patchReply(replyId, {
+        content: `⚠ ${fe.title}\n\n${fe.detail}\n\n→ ${fe.hint}`,
+      });
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
+  }
+
+  function stopStreaming() {
+    abortRef.current?.abort();
   }
 
   async function send() {
@@ -520,32 +617,140 @@ export function ChatRoom() {
     void navigator.clipboard.writeText(m.content).catch(() => {});
   }
 
-  async function retryLast() {
+  // 重 roll 最后一条 assistant — 旧回复进 swipe 候选池不丢, 新变体流式生成.
+  // Core mode: 时间线只存「当前选中」— 旧选中的 core 行先删, 新变体生成完写新行,
+  // 左滑回旧变体时 scheduleSwipeSync 再把时间线换回去.
+  async function regenerate() {
     if (busy) return;
-    // 删掉最后一条 assistant, 用其前的 history (含最后一条 user) 重 fire.
-    // Core mode: also delete the stale reply's row in kimi-core (by its coreId) so the
-    // bad answer doesn't linger in the cross-device timeline / digest, and the retry
-    // replaces it instead of appending a second reply other devices keep seeing.
     const lastAssistantIdx = [...session.msgs]
       .reverse()
       .findIndex((m) => m.role === "assistant");
     if (lastAssistantIdx === -1) return;
-    const removeAt = session.msgs.length - 1 - lastAssistantIdx;
-    const staleCoreId = session.msgs[removeAt]?.coreId;
-    if (staleCoreId) void deleteCoreChat(staleCoreId);
-    const historyMsgs = session.msgs.slice(0, removeAt);
+    const at = session.msgs.length - 1 - lastAssistantIdx;
+    const cur = session.msgs[at];
+    const historyMsgs = session.msgs.slice(0, at);
     if (!historyMsgs.length) return;
 
-    const replyId = `m-${Date.now()}`;
-    const replyMsg: ChatMessage = {
-      id: replyId,
-      role: "assistant",
-      content: "",
-      ts: new Date().toISOString(),
-    };
-    setSession((s) => ({ ...s, msgs: [...historyMsgs, replyMsg] }));
+    // 当前内容收进候选池 (首次重 roll 时建池), 新的空变体 append 并选中
+    const pool: SwipeVariant[] =
+      cur.swipes ??
+      (cur.content
+        ? [{ content: cur.content, thinking: cur.thinking, cost: cur.cost, coreId: cur.coreId }]
+        : []);
+    const swipes = [...pool, { content: "" }];
+    const swipeIndex = swipes.length - 1;
+
+    // core 时间线换行: 旧选中的行删掉 (新行生成完由 streamReply 写)
+    if (cur.coreId) {
+      void deleteCoreChat(cur.coreId);
+      // 池里同一变体的 coreId 也清掉 — 行已删, 别在 swipe sync 里再删一次
+      const stale = cur.coreId;
+      for (const v of swipes) if (v.coreId === stale) v.coreId = undefined;
+    }
+
+    setSession((s) => ({
+      ...s,
+      msgs: [
+        ...historyMsgs,
+        {
+          ...cur,
+          content: "",
+          thinking: undefined,
+          cost: undefined,
+          coreId: undefined,
+          swipes,
+          swipeIndex,
+        },
+      ],
+    }));
     setBusy(true);
-    await streamReply(historyMsgs, replyId, session.sessionId);
+    await streamReply(historyMsgs, cur.id, session.sessionId);
+  }
+
+  // 左右切候选. 右滑到头 = 生成新变体 (酒馆语义).
+  function switchSwipe(msgId: string, dir: 1 | -1) {
+    if (busy) return;
+    const m = session.msgs.find((x) => x.id === msgId);
+    if (!m) return;
+    const pool = m.swipes;
+    if (!pool || pool.length === 0) {
+      if (dir === 1) void regenerate();
+      return;
+    }
+    const cur = m.swipeIndex ?? 0;
+    const next = cur + dir;
+    if (next < 0) return;
+    if (next >= pool.length) {
+      void regenerate();
+      return;
+    }
+    const v = pool[next];
+    setSession((s) => ({
+      ...s,
+      msgs: s.msgs.map((x) =>
+        x.id === msgId
+          ? {
+              ...x,
+              content: v.content,
+              thinking: v.thinking,
+              cost: v.cost,
+              coreId: v.coreId,
+              swipeIndex: next,
+            }
+          : x,
+      ),
+    }));
+    scheduleSwipeSync(msgId);
+  }
+
+  // 切换变体后 2s (连点归并) 把 core 时间线对齐当前选中: 删非选中变体残留的行,
+  // 选中变体没行则写一行. pendingSwipeSync 挡住 focus refresh, 避免旧行覆盖回来.
+  function scheduleSwipeSync(msgId: string) {
+    if (!isCoreBackend()) return;
+    pendingSwipeSync.current = true;
+    if (swipeSyncTimer.current != null) clearTimeout(swipeSyncTimer.current);
+    swipeSyncTimer.current = window.setTimeout(() => {
+      swipeSyncTimer.current = null;
+      const s = sessionRef.current;
+      const m = s.msgs.find((x) => x.id === msgId);
+      if (!m || !m.swipes) {
+        pendingSwipeSync.current = false;
+        return;
+      }
+      const idx = m.swipeIndex ?? 0;
+      // 非选中变体留在 core 的行全删
+      const staleIds = m.swipes
+        .filter((v, i) => i !== idx && v.coreId)
+        .map((v) => v.coreId!);
+      for (const cid of staleIds) void deleteCoreChat(cid);
+      if (staleIds.length) {
+        setSession((prev) => ({
+          ...prev,
+          msgs: prev.msgs.map((x) =>
+            x.id === msgId && x.swipes
+              ? {
+                  ...x,
+                  swipes: x.swipes.map((v, i) =>
+                    i !== (x.swipeIndex ?? 0) ? { ...v, coreId: undefined } : v,
+                  ),
+                }
+              : x,
+          ),
+        }));
+      }
+      // 选中变体没写过 core → 补一行
+      if (!m.coreId && m.content.trim()) {
+        void writeCoreChat("assistant", m.content.trim(), s.sessionId)
+          .then((coreId) => {
+            if (coreId) patchReply(msgId, { coreId });
+          })
+          .finally(() => {
+            pendingSwipeSync.current = false;
+          });
+      } else {
+        pendingSwipeSync.current = false;
+      }
+    }, 2000);
   }
 
   async function newWindow() {
@@ -1001,7 +1206,7 @@ export function ChatRoom() {
             const showTs =
               !prev ||
               new Date(m.ts).getTime() - new Date(prev.ts).getTime() > 5 * 60 * 1000;
-            // retry 只对最后一条 assistant 显示 (并且不是 streaming 中)
+            // retry / swipe 只对最后一条 assistant 显示 (并且不是 streaming 中)
             const isLastAssistant =
               m.role === "assistant" &&
               i === session.msgs.length - 1 &&
@@ -1014,7 +1219,8 @@ export function ChatRoom() {
                 palette={p}
                 showTs={showTs}
                 onCopy={() => copyMsg(m.id)}
-                onRetry={isLastAssistant ? retryLast : undefined}
+                onRetry={isLastAssistant ? regenerate : undefined}
+                onSwipe={isLastAssistant ? (dir) => switchSwipe(m.id, dir) : undefined}
               />
             );
           })
@@ -1038,7 +1244,6 @@ export function ChatRoom() {
         style={{
           position: "relative",
           zIndex: 2,
-          padding: "6px 10px",
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)",
           borderTop: `0.4px solid ${p.hairline}`,
           background:
@@ -1048,55 +1253,239 @@ export function ChatRoom() {
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           display: "flex",
-          gap: 6,
-          alignItems: "flex-end",
+          flexDirection: "column",
         }}
       >
-        <textarea
-          ref={draftRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="message…"
-          rows={1}
-          style={{
-            flex: 1,
-            background: p.inputBg,
-            color: p.inputInk,
-            border: `0.6px solid ${p.hairline}`,
-            borderRadius: 16,
-            padding: "8px 12px",
-            fontSize: 15,
-            lineHeight: 1.4,
-            fontFamily: FONT_STACK,
-            outline: "none",
-            resize: "none",
-            overflow: "hidden",
+        {/* model switcher strip — 点开浮层切档案/模型, 不出对话页 */}
+        <ModelSwitcher
+          palette={p}
+          theme={theme}
+          settings={llmSettings}
+          open={showModelPicker}
+          onToggle={() => setShowModelPicker((v) => !v)}
+          onPick={(pid, model) => {
+            setActiveModel(pid, model);
+            setLlmSettings(loadLLMSettings());
+            setShowModelPicker(false);
           }}
         />
-        <button
-          type="button"
-          onClick={send}
-          disabled={busy || !draft.trim()}
-          aria-label="send"
+        <div
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            border: "none",
-            background: draft.trim() ? p.accent : `${p.accent}55`,
-            color: theme === "day" ? "#fff" : "#1a0e08",
-            cursor: draft.trim() ? "pointer" : "default",
-            fontSize: 14,
+            padding: "6px 10px 0",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
+            gap: 6,
+            alignItems: "flex-end",
           }}
         >
-          ↑
-        </button>
+          <textarea
+            ref={draftRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="message…"
+            rows={1}
+            style={{
+              flex: 1,
+              background: p.inputBg,
+              color: p.inputInk,
+              border: `0.6px solid ${p.hairline}`,
+              borderRadius: 16,
+              padding: "8px 12px",
+              fontSize: 15,
+              lineHeight: 1.4,
+              fontFamily: FONT_STACK,
+              outline: "none",
+              resize: "none",
+              overflow: "hidden",
+            }}
+          />
+          <button
+            type="button"
+            onClick={busy ? stopStreaming : send}
+            disabled={!busy && !draft.trim()}
+            aria-label={busy ? "stop" : "send"}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              border: "none",
+              background: busy || draft.trim() ? p.accent : `${p.accent}55`,
+              color: theme === "day" ? "#fff" : "#1a0e08",
+              cursor: busy || draft.trim() ? "pointer" : "default",
+              fontSize: busy ? 11 : 14,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {busy ? "◼" : "↑"}
+          </button>
+        </div>
       </div>
     </main>
+  );
+}
+
+// ============================================
+// ModelSwitcher
+// ============================================
+
+// composer 上方一行细字: 当前 档案 · 模型, 点开浮层列出所有档案的所有模型.
+// 档案编辑在 /backstage/settings; 这里只切.
+function ModelSwitcher({
+  palette: p,
+  theme,
+  settings,
+  open,
+  onToggle,
+  onPick,
+}: {
+  palette: ChatPalette;
+  theme: ChatTheme;
+  settings: LLMSettings | null;
+  open: boolean;
+  onToggle: () => void;
+  onPick: (profileId: string, model: string) => void;
+}) {
+  const profiles = settings?.profiles ?? [];
+  const withModels = profiles.filter((pf) => pf.models.length > 0);
+  const active = profiles.find((pf) => pf.id === settings?.activeProfileId) ?? profiles[0];
+  const activeModel = settings?.activeModel || active?.models[0] || "";
+  const label = active
+    ? `${active.name || "未命名"} · ${activeModel || "no model"}`
+    : "配置 LLM";
+
+  return (
+    <div style={{ position: "relative", padding: "4px 14px 0" }}>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 6px)",
+            left: 10,
+            right: 10,
+            maxHeight: 300,
+            overflowY: "auto",
+            background:
+              theme === "day" ? "rgba(255,255,255,0.96)" : "rgba(20,12,14,0.94)",
+            backdropFilter: "blur(20px) saturate(160%)",
+            WebkitBackdropFilter: "blur(20px) saturate(160%)",
+            border: `0.6px solid ${p.hairline}`,
+            borderRadius: 12,
+            padding: "8px 10px",
+            boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
+            zIndex: 6,
+          }}
+        >
+          {withModels.length === 0 ? (
+            <Link
+              href="/backstage/settings"
+              style={{
+                display: "block",
+                fontSize: 11,
+                color: p.inkSoft,
+                padding: "6px 4px",
+                textDecoration: "none",
+              }}
+            >
+              还没有档案 · 去 /backstage/settings 加 →
+            </Link>
+          ) : (
+            withModels.map((pf) => (
+              <div key={pf.id} style={{ marginBottom: 8 }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: p.inkMute,
+                    padding: "4px 4px 2px",
+                  }}
+                >
+                  {pf.name || "未命名"}
+                  <span style={{ marginLeft: 6, opacity: 0.7 }}>{pf.format}</span>
+                </div>
+                {pf.models.map((m) => {
+                  const isActive =
+                    pf.id === settings?.activeProfileId && m === settings?.activeModel;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => onPick(pf.id, m)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "5px 8px",
+                        fontSize: 12,
+                        fontFamily:
+                          "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        color: isActive ? p.accent : p.inkSoft,
+                        background: isActive ? `${p.accent}1a` : "transparent",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          )}
+          {withModels.length > 0 && (
+            <Link
+              href="/backstage/settings"
+              style={{
+                display: "block",
+                fontSize: 9,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                color: p.inkMute,
+                padding: "6px 4px 2px",
+                textDecoration: "none",
+                borderTop: `0.4px solid ${p.hairline}`,
+                marginTop: 4,
+              }}
+            >
+              管理档案 →
+            </Link>
+          )}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: "2px 0",
+          fontSize: 10,
+          letterSpacing: 1,
+          color: p.inkMute,
+          cursor: "pointer",
+          fontFamily: FONT_STACK,
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+        }}
+      >
+        <span
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: "50%",
+            background: active?.apiKey ? p.accent : p.inkMute,
+            display: "inline-block",
+            opacity: 0.8,
+          }}
+        />
+        {label}
+        <span style={{ fontSize: 8, opacity: 0.8 }}>{open ? "▲" : "▼"}</span>
+      </button>
+    </div>
   );
 }
 
@@ -1129,12 +1518,14 @@ function MessageItem({
   showTs,
   onCopy,
   onRetry,
+  onSwipe,
 }: {
   msg: ChatMessage;
   palette: ChatPalette;
   showTs: boolean;
   onCopy: () => void;
   onRetry?: () => void;
+  onSwipe?: (dir: 1 | -1) => void;
 }) {
   const [showActions, setShowActions] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
@@ -1365,10 +1756,15 @@ function MessageItem({
           )}
         </div>
       </div>
-      {!isUser && msg.cost && (
+      {/* swipe 行 (最后一条 assistant): ‹ n/m › 切候选, 右滑到头 = 重 roll 出新变体.
+          cost 并进同一行. 非 swipe 消息只显示 cost. */}
+      {!isUser && (onSwipe || msg.cost) && (
         <div
           style={{
             marginTop: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
             fontSize: 9,
             letterSpacing: 1.5,
             color: p.inkMute,
@@ -1376,7 +1772,57 @@ function MessageItem({
             textTransform: "uppercase",
           }}
         >
-          in {msg.cost.inTok} · out {msg.cost.outTok}
+          {onSwipe && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <button
+                type="button"
+                aria-label="previous variant"
+                disabled={(msg.swipeIndex ?? 0) === 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSwipe(-1);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: (msg.swipeIndex ?? 0) === 0 ? `${p.inkMute}55` : p.inkSoft,
+                  cursor: (msg.swipeIndex ?? 0) === 0 ? "default" : "pointer",
+                  fontSize: 13,
+                  padding: "0 3px",
+                  lineHeight: 1,
+                }}
+              >
+                ‹
+              </button>
+              <span>
+                {(msg.swipeIndex ?? 0) + 1}/{msg.swipes?.length ?? 1}
+              </span>
+              <button
+                type="button"
+                aria-label="next variant / reroll"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSwipe(1);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: p.inkSoft,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  padding: "0 3px",
+                  lineHeight: 1,
+                }}
+              >
+                ›
+              </button>
+            </span>
+          )}
+          {msg.cost && (
+            <span>
+              in {msg.cost.inTok} · out {msg.cost.outTok}
+            </span>
+          )}
         </div>
       )}
       {showActions && (

@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local de-id patterns (never commit)
 .scrub-secrets.local
+
+# local dev harness
+.claude/
