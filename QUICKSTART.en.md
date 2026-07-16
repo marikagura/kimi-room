@@ -41,17 +41,27 @@ same as the Vercel section.
 
 ## Configure the LLM (optional)
 
-After opening the site, click `settings` at the bottom-right and fill:
+After opening the site, click `settings` at the bottom-right and add a profile
+under "LLM profiles":
 
-- **API endpoint** · e.g. `https://api.openai.com/v1/chat/completions`
+- **Format** · `openai compat` (OpenAI / OpenRouter / DeepSeek / Zhipu / Qwen /
+  local vLLM, etc.) or native `anthropic` (direct Claude API from the browser,
+  no proxy needed)
+- **endpoint** · base URL is enough · e.g. `https://api.deepseek.com` /
+  `https://openrouter.ai/api/v1`
 - **API key** · your own (stored only in your browser, never uploaded)
-- **Model name** · e.g. `gpt-4o-mini` / `claude-3-5-sonnet-20241022` / `deepseek-chat`
+- **Models** · one per line, or click "fetch model list" to fill automatically
+
+You can keep several profiles (one for DeepSeek, one for Claude, one for
+OpenRouter). The strip above the chat composer switches profile + model any
+time without going back to settings. temperature / max tokens live in
+settings too.
 
 It works without a key too · just the Heartbeat ✨ LLM button produces nothing
 when pressed.
 
-OpenAI format is enough (most providers support it). In mainland China you can use
-DeepSeek / Zhipu / Qwen.
+If you had the old single endpoint / key / model config, it migrates into the
+first profile automatically.
 
 ## Make it your own (AI-assisted · no coding needed)
 

@@ -36,15 +36,21 @@ PWA 装到主屏幕 · 数据存哪 · 一切都跟 Vercel 那一节一样.
 
 ## 配置 LLM (可选)
 
-进网站后点右下角 `settings`, 填:
+进网站后点右下角 `settings`, 在「LLM 档案」里加一条:
 
-- **API endpoint** · 例 `https://api.openai.com/v1/chat/completions`
+- **格式** · `openai compat` (OpenAI / OpenRouter / DeepSeek / 智谱 / 通义千问 / 本地 vLLM 等)
+  或 `anthropic 原生` (Claude 官方 API 直连, 不用架 proxy)
+- **endpoint** · base URL 即可 · 例 `https://api.deepseek.com` / `https://openrouter.ai/api/v1`
 - **API key** · 你自己的 (仅存你浏览器, 不上传)
-- **Model name** · 例 `gpt-4o-mini` / `claude-3-5-sonnet-20241022` / `deepseek-chat`
+- **模型** · 一行一个, 或点「拉取模型列表」自动填
+
+档案可以存多条 (DeepSeek 一条 / Claude 一条 / OpenRouter 一条).
+对话页输入框上方可以随时切档案和模型, 不用回 settings.
+temperature / max tokens 也在 settings 里调.
 
 不填 key 也能用 · 只是 Heartbeat 的 ✨ LLM 按钮按了不出东西.
 
-OpenAI 格式即可 (大部分服务商都支持). 国内可以用 DeepSeek / 智谱 / 通义千问.
+旧版填过单条 endpoint / key / model 的, 打开页面自动迁移成第一条档案.
 
 ## 改成你自己的版本 (LLM 辅助 · 不会代码也行)
 
