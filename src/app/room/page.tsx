@@ -81,10 +81,31 @@ export default async function RoomPage({
         }
         .kimi-moon-idle   { animation: kimi-moon-idle 90s linear infinite; }
         .kimi-breath      { animation: kimi-breath 4.5s ease-in-out infinite; }
+        @keyframes kimi-moonpool-breath {
+          0%, 100% { opacity: 0.72; }
+          50%      { opacity: 1; }
+        }
+        .kimi-moonpool-breath { animation: kimi-moonpool-breath 8s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
-          .kimi-moon-idle, .kimi-breath { animation: none; }
+          .kimi-moon-idle, .kimi-breath, .kimi-moonpool-breath { animation: none; }
         }
       `}</style>
+
+      {/* tenebrism 光衰减 — 一个光源统治全画: hero (月亮) 处最亮, 向页面底部
+          渐渐沉入暗部. 夜版 only; pointer-events 穿透, 盖在所有内容上. */}
+      {!isDay && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 10,
+            pointerEvents: "none",
+            background:
+              "linear-gradient(180deg, transparent 0%, transparent 36%, rgba(0,0,0,0.09) 60%, rgba(0,0,0,0.2) 100%)",
+          }}
+        />
+      )}
 
       {/* mosaic corners */}
       <div aria-hidden style={{ position: "absolute", top: 10, left: 10, color: p.hair, opacity: 0.6 }}>
@@ -117,10 +138,20 @@ export default async function RoomPage({
               opacity: 0.9,
             }}
           >
-            <MuchaArch color={p.hair} accent={p.accent} />
+            <MuchaArch
+              color={p.hair}
+              accent={p.accent}
+              // day 的 hair 是低透明度暖褐 — 主弧用同色相半透变体 (端 38% /
+              // 顶 62%), 只比周围线略实, 粗细做层级; 实色铜/金都会跳出来.
+              giltStops={
+                isDay
+                  ? ["rgba(106,74,72,0.38)", "rgba(106,74,72,0.62)", "rgba(106,74,72,0.38)"]
+                  : undefined
+              }
+            />
           </div>
           {/* medallion with avatars */}
-          <div className="flex justify-center mt-5">
+          <div className="flex justify-center mt-5" style={{ position: "relative", zIndex: 1 }}>
           <div style={{ position: "relative", width: 170, height: 170 }}>
             <div style={{ position: "absolute", inset: 0, color: p.hair }}>
               <MuchaMedallion color={p.hair} accent={p.accent} size={170} />
@@ -141,7 +172,27 @@ export default async function RoomPage({
 
         {/* hero — tap → /chat. day mode: rose bloom dial (4 stage by
             day-of-month). night mode: real moon phase SVG. */}
-        <div style={{ textAlign: "center", marginTop: 14 }}>
+        <div style={{ textAlign: "center", marginTop: 14, position: "relative", zIndex: 1 }}>
+          {/* 月光光池 — 巴洛克单光源: 光从月亮洒到祭坛面上 (夜版 only).
+              8s 极缓呼吸 — 烛光活着, 不是表演. */}
+          {!isDay && (
+            <div
+              aria-hidden
+              className="kimi-moonpool-breath"
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 250,
+                height: 250,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(circle, rgba(212,154,86,0.13) 0%, rgba(212,154,86,0.045) 42%, transparent 70%)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
           <Link
             href="/chat"
             aria-label={
@@ -155,6 +206,7 @@ export default async function RoomPage({
               lineHeight: 0,
               textDecoration: "none",
               transition: "transform 200ms",
+              position: "relative",
             }}
             className={
               isDay
@@ -203,6 +255,10 @@ export default async function RoomPage({
                 justifyContent: "space-between",
                 overflow: "hidden",
                 color: p.ink,
+                // 巴洛克体积 — 深·软·暖的暗部投影, 卡片从「画在纸上」变「摆在桌上」
+                boxShadow: isDay
+                  ? "0 8px 20px rgba(60, 38, 20, 0.16), 0 2px 6px rgba(60, 38, 20, 0.10)"
+                  : "0 10px 26px rgba(4, 2, 1, 0.55), 0 2px 8px rgba(4, 2, 1, 0.35)",
               }}
             >
               <svg
@@ -211,6 +267,15 @@ export default async function RoomPage({
                 height="14"
                 style={{ color: p.hair, position: "absolute", top: 0, left: 0, right: 0 }}
               >
+                <defs>
+                  {/* 六卡同 id 引第一个定义即可 (内容相同) */}
+                  <linearGradient id="kimi-tile-arc-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="currentColor" stopOpacity="0.09" />
+                    <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {/* 弧内的面 — 光从卡顶落进来 */}
+                <path d="M4 18 Q4 2 50 2 Q96 2 96 18 Z" fill="url(#kimi-tile-arc-fill)" />
                 <path d="M4 18 Q4 2 50 2 Q96 2 96 18" fill="none" stroke="currentColor" strokeWidth="0.5" />
                 <circle cx="50" cy="5" r="1" fill={p.accent} />
               </svg>
