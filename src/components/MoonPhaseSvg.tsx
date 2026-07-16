@@ -37,7 +37,10 @@ export function MoonPhaseSvg({
   const rx = Math.abs(cosVal) * r;
   const isWaxing = phase < 0.5;
   const sweepOuter = isWaxing ? 0 : 1;
-  const sweepInner = cosVal >= 0 === isWaxing ? 1 : 0;
+  // 内弧凸向: 月牙相 (|cos| 大) 时 shadow 要盖大半盘面 → 内弧凸向亮牙的反侧;
+  // 凸凹相 (cos<0) 时 shadow 只剩边缘细牙 → 内弧凸向 shadow 同侧.
+  // 之前 1:0 写反, 月牙相全被画成近满月 (新月当天渲染成圆月).
+  const sweepInner = cosVal >= 0 === isWaxing ? 0 : 1;
   const shadowPath = `M ${cx},${cy - r} A ${r},${r} 0 0 ${sweepOuter} ${cx},${cy + r} A ${rx},${r} 0 0 ${sweepInner} ${cx},${cy - r} Z`;
 
   return (
