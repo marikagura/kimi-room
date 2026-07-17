@@ -132,26 +132,46 @@ export function CategoryList({ P }: { P: KimiPalette }) {
                 style={{
                   display: "flex",
                   alignItems: "stretch",
+                  gap: 4,
                 }}
               >
                 <Link
                   href={`/room/study/c/${slug}`}
-                  style={{
-                    flex: 1,
-                    padding: "14px 16px",
-                    background: P.softAccent,
-                    borderLeft: `2px solid ${P.accent}`,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    color: P.ink,
-                    textDecoration: "none",
-                  }}
+                  className="kimi-study-card"
+                  style={
+                    {
+                      flex: 1,
+                      position: "relative",
+                      boxSizing: "border-box",
+                      padding: "13px 16px 12px",
+                      border: `1px solid ${P.hair}`,
+                      background: `linear-gradient(160deg, ${P.card}, ${P.bg})`,
+                      color: P.ink,
+                      textDecoration: "none",
+                      ["--card-hover" as string]: P.accent,
+                    } as React.CSSProperties
+                  }
                 >
-                  <div>
+                  {/* 顶心 accent 点 */}
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 4,
+                      height: 4,
+                      borderRadius: "50%",
+                      background: P.accent,
+                      opacity: 0.8,
+                    }}
+                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div
                       style={{
-                        fontSize: 17,
+                        fontSize: 20,
+                        fontWeight: 500,
                         fontFamily: FONT_STACK,
                         color: P.ink,
                         letterSpacing: 1,
@@ -159,39 +179,34 @@ export function CategoryList({ P }: { P: KimiPalette }) {
                     >
                       {c}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        color: P.mute,
-                        fontStyle: "italic",
-                        marginTop: 3,
-                      }}
-                    >
-                      {count} 条 →
-                      {foxCats.includes(c) && (
-                        <span
-                          style={{
-                            marginLeft: 8,
-                            fontSize: 9,
-                            letterSpacing: 2,
-                            color: P.accent,
-                            fontStyle: "italic",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          · 共读 on
-                        </span>
-                      )}
-                    </div>
+                    <svg width="24" height="8" viewBox="0 0 26 8" fill="none" aria-hidden>
+                      <path d="M0 4 H24 M20 1 L24 4 L20 7" stroke={P.accent} strokeWidth="1" />
+                    </svg>
                   </div>
                   <div
                     style={{
-                      fontSize: 20,
-                      color: P.accent,
+                      fontSize: 10,
+                      color: P.mute,
                       fontStyle: "italic",
+                      marginTop: 3,
+                      letterSpacing: 1,
                     }}
                   >
-                    →
+                    {count} 条
+                    {foxCats.includes(c) && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 9,
+                          letterSpacing: 2,
+                          color: P.accent,
+                          fontStyle: "italic",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        · 共读 on
+                      </span>
+                    )}
                   </div>
                 </Link>
                 <button
