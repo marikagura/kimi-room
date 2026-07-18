@@ -116,8 +116,7 @@ function Bow({ t, blurId, night }: { t: ThemeT; blurId: string; night: boolean }
       <circle cx="248" cy="32" r="1.6" fill={t.apexSmall} />
       <line x1="201" y1="22" x2="201" y2="58" stroke={t.bow} opacity="0.4" />
       <line x1="201" y1="166" x2="201" y2="182" stroke={t.bow} opacity="0.4" />
-      <line x1="40" y1="112" x2="146" y2="112" stroke={t.bow} opacity="0.3" />
-      <line x1="256" y1="112" x2="362" y2="112" stroke={t.bow} opacity="0.3" />
+      {/* 徽章两侧 y=112 横辐线 0718 删 — 合起来是一道横穿弓拱的直线 */}
       <line x1="242" y1="71" x2="253" y2="60" stroke={t.bow} opacity="0.55" />
       <line x1="160" y1="71" x2="149" y2="60" stroke={t.bow} opacity="0.55" />
       <line x1="230" y1="62" x2="238" y2="48" stroke={t.bow} opacity="0.55" />
