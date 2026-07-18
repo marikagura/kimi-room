@@ -189,11 +189,12 @@ export function CelestialDial({
       <style>{`
         @keyframes kimi-dial-ring { to { transform: rotate(-360deg); } }
         @keyframes kimi-dial-glow { to { transform: rotate(360deg); } }
-        /* transform-box: fill-box + origin center — iOS Safari 把 px origin
-           按错参照解析, 环绕偏心点转 = 看起来上下抖. 两组内容都对称于圆心,
-           fill-box 中心即圆心, 纯自转不摆. */
-        .kimi-dial-ring { transform-box: fill-box; transform-origin: center; animation: kimi-dial-ring 110s linear infinite; }
-        .kimi-dial-glow { transform-box: fill-box; transform-origin: center; animation: kimi-dial-glow 16s linear infinite; }
+        /* transform-box: view-box (不是 fill-box) — 两组内容只有描边无填充,
+           getBBox 退化成 0×0; fill-box 下 origin center 便算成 (0,0) → 绕左上
+           角转 = 上下抖. view-box 用 SVG viewBox(0 0 200 200)定原点 →
+           center=(100,100)=真圆心, 不依赖 getBBox, 与月相同一套 (那个不抖). */
+        .kimi-dial-ring { transform-box: view-box; transform-origin: center; animation: kimi-dial-ring 110s linear infinite; }
+        .kimi-dial-glow { transform-box: view-box; transform-origin: center; animation: kimi-dial-glow 16s linear infinite; }
         @media (prefers-reduced-motion: reduce) { .kimi-dial-ring, .kimi-dial-glow { animation: none; } }
       `}</style>
       <svg width="100%" height="100%" viewBox="0 0 200 200" aria-hidden style={{ position: "absolute", inset: 0, overflow: "visible" }}>
