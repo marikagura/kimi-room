@@ -8,6 +8,8 @@
 
 a room for one person and her other one.
 
+> **状态** · 本仓库自 v0.40 起不再跟随作者私有版本（canon）更新。已发布的版本与 tag 保持可用；必要的修复视情况发布。
+
 开源 companion PWA。六个房间，可以自己搭——每块是一个 addon（积木），在 `/backstage/settings` 勾哪六个上首页、其余落底部（见 [ADDONS.md](ADDONS.md)）；已内置 **Atlas** 与 **Ephemera**。数据在你浏览器里。
 不需要服务器、不需要域名、不收集任何数据。代码 AGPL v3，美术 CC BY-NC。
 
