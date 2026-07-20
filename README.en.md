@@ -8,8 +8,6 @@
 
 a room for one person and her other one.
 
-> **Status** · As of v0.40, this repository no longer tracks the author’s private upstream (canon). Published releases and tags remain available; fixes may still land occasionally.
-
 An open-source companion PWA. Six rooms — assemble them yourself: each is an
 addon (a building block); pick which six sit on the home grid in
 `/backstage/settings`, the rest fall to the bottom (see [ADDONS.en.md](ADDONS.en.md)).
