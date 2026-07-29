@@ -2612,7 +2612,8 @@ function MessageItem({
         display: "flex",
         flexDirection: "column",
         alignItems: mine ? "flex-end" : "flex-start",
-        gap: 4,
+        // Matches the row gap of the avatar reading — split sentences need a seam.
+        gap: 6,
         maxWidth: "100%",
       }}
     >
@@ -2635,36 +2636,49 @@ function MessageItem({
     maxWidth: "100%",
   };
 
-  const bodyBefore = (
-    <div style={columnStyle}>
-      {!avatarsOn && (
-        <span style={{ fontSize: 6, letterSpacing: 2, color: mine ? p.roseDim : p.goldDim, fontFamily: FONT_LATIN }}>
-          {mine ? "EGO" : "ILLE"} · <span style={ONUM}>{clockLabel}</span>
-        </span>
-      )}
+  // Collected rather than written as one div, because an empty half must not be
+  // rendered at all. The avatar reading gives this half a row and a portrait of
+  // its own, and on one's own turn it is always empty — thinking and tools belong
+  // to the other voice — so rendering it anyway puts a portrait with nothing
+  // beside it above every line one sends.
+  const beforeNodes: ReactNode[] = [];
 
-      {!mine && (msg.thinking || streaming) && (
-        <div style={{ width: "100%" }}>
-          <Cogitatio
-            p={p}
-            text={msg.thinking}
-            streaming={streaming && !msg.content}
-            startedAt={thinkStartedAt}
-            seconds={msg.thinkingSec}
-          />
-        </div>
-      )}
+  if (!avatarsOn) {
+    beforeNodes.push(
+      <span
+        key="byline"
+        style={{ fontSize: 6, letterSpacing: 2, color: mine ? p.roseDim : p.goldDim, fontFamily: FONT_LATIN }}
+      >
+        {mine ? "EGO" : "ILLE"} · <span style={ONUM}>{clockLabel}</span>
+      </span>,
+    );
+  }
 
-      {!mine && msg.tools && msg.tools.length > 0 && (
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 4 }}>
-          {msg.tools.map((t) => (
-            <ToolLine key={t.id} p={p} tool={t} />
-          ))}
-        </div>
-      )}
+  if (!mine && (msg.thinking || streaming)) {
+    beforeNodes.push(
+      <div key="think" style={{ width: "100%" }}>
+        <Cogitatio
+          p={p}
+          text={msg.thinking}
+          streaming={streaming && !msg.content}
+          startedAt={thinkStartedAt}
+          seconds={msg.thinkingSec}
+        />
+      </div>,
+    );
+  }
 
-    </div>
-  );
+  if (!mine && msg.tools && msg.tools.length > 0) {
+    beforeNodes.push(
+      <div key="tools" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 4 }}>
+        {msg.tools.map((t) => (
+          <ToolLine key={t.id} p={p} tool={t} />
+        ))}
+      </div>,
+    );
+  }
+
+  const bodyBefore = beforeNodes.length > 0 ? <div style={columnStyle}>{beforeNodes}</div> : null;
 
   /**
    * A picture and a link card are also things someone sent, so they belong with
@@ -2686,12 +2700,22 @@ function MessageItem({
     mediaNodes.push(<Fragment key="link"><LinkCard p={p} link={msg.link} mine={mine} compact={avatarsOn} /></Fragment>);
   }
 
-  const bodyAfter = (
-    <div style={columnStyle}>
+  // The footnotes. Collected for the same reason: an empty half would still eat a
+  // gap, and it takes no portrait, so there would be nothing to explain the space.
+  const afterNodes: ReactNode[] = [];
 
-
-      {!mine && msg.content && !streaming && (
+  // One's own message gets marks too, copy and rewind only. Rewind on one's own
+  // line means "this one does not count, put it back in the composer" — which is
+  // what `rewindTo` already does: it walks back to the user turn that produced the
+  // reply, and on a user turn that is the turn itself. Forking and listening are
+  // things one does to a reply, so they stay on that side.
+  if (msg.content && !streaming) {
+    afterNodes.push(
+      mine ? (
+        <ActionMarks key="marks" p={p} onCopy={onCopy} onRewind={onRewind} />
+      ) : (
         <ActionMarks
+          key="marks"
           p={p}
           onCopy={onCopy}
           onFork={onFork}
@@ -2708,24 +2732,29 @@ function MessageItem({
               : undefined
           }
         />
-      )}
+      ),
+    );
+  }
 
-      {msg.cost && (
-        <span
-          style={{
-            ...ONUM,
-            fontSize: 8,
-            letterSpacing: 1.5,
-            color: p.inkMute,
-            fontFamily: FONT_LATIN,
-          }}
-        >
-          IN {msg.cost.inTok} · OUT {msg.cost.outTok}
-          {msg.cost.costUsd != null ? ` · $${msg.cost.costUsd.toFixed(4)}` : ""}
-        </span>
-      )}
-    </div>
-  );
+  if (msg.cost) {
+    afterNodes.push(
+      <span
+        key="cost"
+        style={{
+          ...ONUM,
+          fontSize: 8,
+          letterSpacing: 1.5,
+          color: p.inkMute,
+          fontFamily: FONT_LATIN,
+        }}
+      >
+        IN {msg.cost.inTok} · OUT {msg.cost.outTok}
+        {msg.cost.costUsd != null ? ` · $${msg.cost.costUsd.toFixed(4)}` : ""}
+      </span>,
+    );
+  }
+
+  const bodyAfter = afterNodes.length > 0 ? <div style={columnStyle}>{afterNodes}</div> : null;
 
   /**
    * One row, two cells: content plus a portrait slot, ordered by `mine` so the
@@ -2790,7 +2819,11 @@ function MessageItem({
           style={{
             display: "grid",
             gridTemplateColumns: mine ? "1fr 32px" : "32px 1fr",
-            gap: "0 8px",
+            // A row gap of 6 is the line between "several sentences" and "one
+            // block": each bubble is a row here, and at 0 two neighbours are
+            // separated only by their borders, so a reply split into three still
+            // reads as a single slab.
+            gap: "6px 8px",
             alignItems: "start",
           }}
         >

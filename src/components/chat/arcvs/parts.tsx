@@ -652,6 +652,10 @@ function BareButton({
  * Under every reply: copy, fork, rewind. Bare marks, no labels, no pills — the
  * same feel as the desktop app. Listening and the variant arrows join the row
  * when they apply, at the same weight.
+ *
+ * Every mark is optional and only the ones passed are drawn. Under one's own
+ * message that is copy and rewind alone: forking and listening are things one
+ * does to a reply, and mean nothing under the line one just typed.
  */
 export function ActionMarks({
   p,
@@ -664,8 +668,8 @@ export function ActionMarks({
 }: {
   p: Palette;
   onCopy: () => void;
-  onFork: () => void;
-  onRewind: () => void;
+  onFork?: () => void;
+  onRewind?: () => void;
   onListen?: () => void;
   listenState?: "idle" | "loading" | "playing" | "error";
   swipe?: { index: number; total: number; onMove: (dir: 1 | -1) => void };
@@ -676,12 +680,16 @@ export function ActionMarks({
       <BareButton onClick={onCopy} label="复制">
         <CopyMark color={c} />
       </BareButton>
-      <BareButton onClick={onFork} label="分叉 FVRCA">
-        <ForkMark color={c} />
-      </BareButton>
-      <BareButton onClick={onRewind} label="回拨 RETRO">
-        <RewindMark color={c} />
-      </BareButton>
+      {onFork && (
+        <BareButton onClick={onFork} label="分叉 FVRCA">
+          <ForkMark color={c} />
+        </BareButton>
+      )}
+      {onRewind && (
+        <BareButton onClick={onRewind} label="回拨 RETRO">
+          <RewindMark color={c} />
+        </BareButton>
+      )}
       {onListen && (
         <BareButton onClick={onListen} label={listenState === "playing" ? "停" : "听"}>
           <ListenMark
