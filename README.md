@@ -199,7 +199,7 @@ kimi-core 的记忆检索（RAG）与这两条正交：它只往 prompt 里补�
 
 ```
 CLAUDE_P_ENABLED=1
-CLAUDE_P_BIN=claude              # CLI 不在 PATH 上时填路径
+CLAUDE_P_BIN=claude              # CLI 不在 PATH 上时填路径（只认 Claude 的 CLI，见下）
 CLAUDE_P_CWD=/home/you           # 工作目录，默认用户主目录
 CLAUDE_P_PERMISSION_MODE=default # default | acceptEdits | bypassPermissions | plan
 CLAUDE_P_ALLOWED_TOOLS=          # 留空 = 只出文字
@@ -273,6 +273,27 @@ CLAUDE_P_ALLOWED_TOOLS=          # 留空 = 只出文字
 它们是刻度不是读物，一起放大只会把行挤散。
 
 `prefers-reduced-motion` 下所有动画停、浮尘消失，信息一条不少。
+
+### 换成别家的 CLI？
+
+`CLAUDE_P_BIN` 只是「claude 不在 PATH 上时填路径」，不是「换一个 agent CLI」的开关。
+这条路由是照 Claude CLI 的形状写的：`-p --output-format stream-json
+--include-partial-messages`，以及它那套 `stream_event` / `text_delta` 事件名。
+
+别家确有非交互模式，但形状不同。以 Codex 为例（实测 codex-cli 0.139）：
+
+- 入口是 `codex exec`，不是 `-p`——而且它的 `-p` 是 `--profile`，把 `CLAUDE_P_BIN`
+  指过去不会干脆报错，只会莫名其妙。
+- 事件是 `thread.started` / `turn.started` / `item.completed` / `turn.completed`，
+  跟这里解析的那套没有一个对得上。
+- `--json` 给的是整条 item，不是逐字增量。界面上那些「一个字一个字浮出来」和沉吟
+  计秒会退化成一次性落地。
+
+好消息是接口那一层留好了缝：`src/lib/chat-provider.ts` 的 `ChatProvider` 就是为了
+这个——加一家是**再写一个 provider**，不是改这条路由。真去写的话，Codex 那侧反而
+有两样这里没有的：`thread_id` 是 UUID、`codex exec resume` 能续，会话模型对得上；
+`turn.completed` 报 `cached_input_tokens`，缓存那一格能真填上；它还能直接吃图
+（`-i, --image`）——正是 Claude 这条路做不到的那件。
 
 ### closeout 与新窗口
 

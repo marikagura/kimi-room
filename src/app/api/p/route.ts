@@ -36,7 +36,16 @@ export const maxDuration = 300;
 // env:
 //   CLAUDE_P_ENABLED=1        opt in. Unset → the mode does not exist (GET says
 //                             enabled:false and the UI never lists it).
-//   CLAUDE_P_BIN              path to the CLI (default: "claude" on PATH)
+//   CLAUDE_P_BIN              path to the CLI (default: "claude" on PATH). It has
+//                             to be Claude's CLI or something that speaks its argv
+//                             and its stream-json events — this route is not a
+//                             generic agent runner. Another vendor's CLI will not
+//                             drop in: Codex, for one, runs non-interactively as
+//                             `codex exec --json` and emits thread.started /
+//                             item.completed, and its `-p` means --profile, so
+//                             pointing this at it misfires rather than failing
+//                             cleanly. Supporting one is a second ChatProvider,
+//                             not a different path here.
 //   CLAUDE_P_CWD              working directory (default: the user's home)
 //   CLAUDE_P_PERMISSION_MODE  default | acceptEdits | bypassPermissions | plan
 //                             (default: "default" — tool calls needing approval

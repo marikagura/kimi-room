@@ -216,7 +216,7 @@ Turning it on (`.env`):
 
 ```
 CLAUDE_P_ENABLED=1
-CLAUDE_P_BIN=claude              # path to the CLI, if not on PATH
+CLAUDE_P_BIN=claude              # path to the CLI, if not on PATH (Claude's only — see below)
 CLAUDE_P_CWD=/home/you           # working directory (default: home)
 CLAUDE_P_PERMISSION_MODE=default # default | acceptEdits | bypassPermissions | plan
 CLAUDE_P_ALLOWED_TOOLS=          # empty = text only
@@ -313,6 +313,31 @@ latin small-caps labels do not — they are a scale rather than something to rea
 only breaks the rows apart.
 
 Under `prefers-reduced-motion` every animation stops and the dust disappears; no information is lost.
+
+### Pointing it at another vendor's CLI
+
+`CLAUDE_P_BIN` means "where claude lives if it is not on PATH" — it is not a
+switch for swapping in a different agent CLI. This route is written to Claude's
+shape: `-p --output-format stream-json --include-partial-messages`, and its
+`stream_event` / `text_delta` vocabulary.
+
+Other CLIs do have a non-interactive mode, in a different shape. Codex, measured
+on codex-cli 0.139:
+
+- the entry point is `codex exec`, not `-p` — and its `-p` is `--profile`, so
+  pointing `CLAUDE_P_BIN` at it misfires instead of failing cleanly.
+- events are `thread.started` / `turn.started` / `item.completed` /
+  `turn.completed`; none of the names this route parses appear.
+- `--json` emits whole items, not token deltas. The text arriving a character at
+  a time, and the thinking box counting up, degrade to one lump landing at once.
+
+The seam for this is already in place: `ChatProvider` in
+`src/lib/chat-provider.ts` exists so that adding a vendor is **another provider**
+rather than a change to this route. Worth knowing before writing one: Codex has
+two things this path does not — its `thread_id` is a UUID and `codex exec resume`
+continues a session, so the session model maps over; `turn.completed` reports
+`cached_input_tokens`, so the cache gauge could actually be fed; and it takes
+images directly (`-i, --image`), which is exactly what the Claude path cannot do.
 
 ### Closeout and the fresh window
 
