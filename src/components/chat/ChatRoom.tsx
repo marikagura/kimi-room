@@ -142,8 +142,20 @@ type SessionState = {
   sessionId: string;
   startedAt: string;
   msgs: ChatMessage[];
-  /** -p only: the CLI session this thread continues. */
-  cliSessionId?: string;
+  /**
+   * One CLI session per backend, because they are different machines' idea of
+   * the same conversation and their ids are not interchangeable — handing a
+   * Claude session id to `codex exec resume` just fails.
+   */
+  cliSessions?: Partial<Record<"p" | "codex", string>>;
+  /**
+   * Which backend produced the last turn. A CLI session only knows the turns it
+   * ran itself, so after a switch its memory has a hole where the other backend
+   * spoke. Resuming is therefore allowed only when the last turn was this same
+   * backend; otherwise the turn starts a fresh CLI session with the visible
+   * transcript inlined, which is what "it should know what we just said" means.
+   */
+  lastKind?: "direct" | "p" | "codex";
 };
 
 // Merge core-sourced rows into the local timeline instead of wholesale-replacing
@@ -321,6 +333,9 @@ export function ChatRoom() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarFileRef = useRef<HTMLInputElement>(null);
+  const bgFileRef = useRef<HTMLInputElement>(null);
+  /** Object URL for a self-imported background; resolved from IndexedDB on load. */
+  const [ownBgUrl, setOwnBgUrl] = useState<string | undefined>(undefined);
   const avatarSlotRef = useRef<"me" | "them">("me");
 
   const threadRef = useRef(session.sessionId);
@@ -457,7 +472,8 @@ export function ChatRoom() {
             setSession((s) => ({
               sessionId: tid,
               startedAt: rows[0]?.at ?? new Date().toISOString(),
-              cliSessionId: s.sessionId === tid ? s.cliSessionId : undefined,
+              cliSessions: s.sessionId === tid ? s.cliSessions : undefined,
+              lastKind: s.sessionId === tid ? s.lastKind : undefined,
               msgs:
                 s.sessionId === tid
                   ? mergeCoreRows(s.msgs, rows)
@@ -618,7 +634,26 @@ export function ChatRoom() {
   }, [busy]);
 
   const p = paletteFor(theme);
-  const bg = useMemo(() => BG_OPTIONS.find((b) => b.id === bgId) ?? BG_OPTIONS[0], [bgId]);
+  // "own:<id>" is a picture the owner imported; the rest are the shipped set.
+  const bg = useMemo(() => {
+    if (bgId.startsWith("own:")) return { id: bgId, label: "自选", url: ownBgUrl ?? null };
+    return BG_OPTIONS.find((b) => b.id === bgId) ?? BG_OPTIONS[0];
+  }, [bgId, ownBgUrl]);
+
+  // The stored id survives reloads; the blob URL does not, so it is remade.
+  useEffect(() => {
+    if (!bgId.startsWith("own:")) {
+      setOwnBgUrl(undefined);
+      return;
+    }
+    let alive = true;
+    void chatImageUrl(bgId.slice(4)).then((u) => {
+      if (alive) setOwnBgUrl(u ?? undefined);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [bgId]);
   const sendArt = SEND_ART[theme];
   const provider = useMemo(
     () => resolveProvider(pCap, codexCap),
@@ -715,14 +750,25 @@ export function ChatRoom() {
       const r = await provider.send(turns, {
         system: sys.text || undefined,
         signal: ac.signal,
-        resumeId: provider.kind === "p" ? sessionRef.current.cliSessionId : undefined,
+        resumeId:
+          (provider.kind === "p" || provider.kind === "codex") &&
+          sessionRef.current.lastKind === provider.kind
+            ? sessionRef.current.cliSessions?.[provider.kind]
+            : undefined,
         onEvent: (e) => {
           if (e.type === "text") acc.text += e.delta;
           else if (e.type === "thinking") acc.thinking += e.delta;
           else if (e.type === "tool") toolMap.set(e.tool.id, e.tool);
           else if (e.type === "session") {
             const sid = e.sessionId;
-            setSession((s) => (s.cliSessionId === sid ? s : { ...s, cliSessionId: sid }));
+            const k = provider.kind;
+            if (k === "p" || k === "codex") {
+              setSession((s) =>
+                s.cliSessions?.[k] === sid
+                  ? s
+                  : { ...s, cliSessions: { ...s.cliSessions, [k]: sid } },
+              );
+            }
           }
           scheduleFlush();
         },
@@ -744,10 +790,14 @@ export function ChatRoom() {
         tools: r.tools ?? (toolMap.size ? [...toolMap.values()] : undefined),
       });
       if (r.usage?.costUsd) addSpend(r.usage.costUsd);
-      if (r.sessionId) {
+      if (r.sessionId && (provider.kind === "p" || provider.kind === "codex")) {
         const sid = r.sessionId;
-        setSession((s) => (s.cliSessionId === sid ? s : { ...s, cliSessionId: sid }));
+        const k = provider.kind;
+        setSession((s) =>
+          s.cliSessions?.[k] === sid ? s : { ...s, cliSessions: { ...s.cliSessions, [k]: sid } },
+        );
       }
+      setSession((s) => (s.lastKind === provider.kind ? s : { ...s, lastKind: provider.kind }));
 
       // Await the core persist before `finally` clears busy: while busy is true
       // the focus/visibility refresh bails, so this closes the window where a
@@ -861,6 +911,18 @@ export function ChatRoom() {
       flash("图片没存上 · 再选一次");
     } finally {
       setUploading(null);
+    }
+  }
+
+  /** Import a picture of one's own as the background. Stored like any chat
+   *  image — downscaled into IndexedDB, never uploaded. */
+  async function pickBackground(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    try {
+      const img = await putChatImage(file);
+      applyBg(`own:${img.id}`);
+    } catch {
+      flash("背景没存上");
     }
   }
 
@@ -1047,7 +1109,8 @@ export function ChatRoom() {
       sessionId: newId,
       startedAt: new Date().toISOString(),
       msgs: kept,
-      cliSessionId: undefined,
+      cliSessions: undefined,
+      lastKind: undefined,
     });
     if (isCoreBackend()) {
       for (const m of kept) {
@@ -1089,7 +1152,8 @@ export function ChatRoom() {
       msgs: s.msgs.slice(0, cut),
       // The CLI session still holds the removed turns; drop the handle so the
       // next send starts a session that matches what is on screen.
-      cliSessionId: undefined,
+      cliSessions: undefined,
+      lastKind: undefined,
     }));
     if (restored) setDraft(restored);
   }
@@ -1401,6 +1465,7 @@ export function ChatRoom() {
           contextMax={contextMax}
           sysStats={sysStats}
           onBg={applyBg}
+          onImportBg={() => bgFileRef.current?.click()}
           onBgFit={applyBgFit}
           onAvatars={applyAvatarsOn}
           onPickAvatar={(slot) => {
@@ -1614,6 +1679,17 @@ export function ChatRoom() {
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void pickAvatar(f);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={bgFileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void pickBackground(f);
               e.target.value = "";
             }}
           />
@@ -1983,6 +2059,7 @@ function SettingsDrawer({
   contextMax,
   sysStats,
   onBg,
+  onImportBg,
   onBgFit,
   onAvatars,
   onPickAvatar,
@@ -2003,6 +2080,7 @@ function SettingsDrawer({
   contextMax: number;
   sysStats: { spChars: number; memInjectOn: boolean; memTotalActive: number } | null;
   onBg: (id: string) => void;
+  onImportBg: () => void;
   onBgFit: (f: BgFit) => void;
   onAvatars: (v: boolean) => void;
   onPickAvatar: (slot: "me" | "them") => void;
@@ -2133,6 +2211,35 @@ function SettingsDrawer({
             {b.label}
           </button>
         ))}
+        {/* Last cell in the same grid, so it reads as one more option rather
+            than a control bolted on. A picture chosen here is downscaled into
+            IndexedDB like any chat image — it never leaves the device. */}
+        <button
+          type="button"
+          onClick={onImportBg}
+          style={{
+            padding: "5px 8px",
+            fontSize: 10,
+            letterSpacing: 1,
+            border: `1px dashed ${bgId.startsWith("own:") ? (p.theme === "day" ? p.roseHi : p.gold) : p.ruleSoft}`,
+            background: bgId.startsWith("own:")
+              ? p.theme === "day"
+                ? "rgba(176,64,99,.08)"
+                : "rgba(230,205,150,.08)"
+              : "transparent",
+            color: bgId.startsWith("own:")
+              ? p.theme === "day"
+                ? p.roseHi
+                : p.goldHi
+              : p.inkSoft,
+            cursor: "pointer",
+            fontFamily: FONT_CN,
+            borderRadius: 4,
+            textAlign: "left",
+          }}
+        >
+          ＋ 自选
+        </button>
       </div>
       {bgId !== "none" && (
         <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>

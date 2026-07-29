@@ -314,6 +314,29 @@ only breaks the rows apart.
 
 Under `prefers-reduced-motion` every animation stops and the dust disappears; no information is lost.
 
+### Switching between the three
+
+Every row in the switcher can be picked at any time, mid-thread included — but
+they remember differently, which is worth knowing:
+
+- **direct (API)** is stateless: every turn sends this thread's visible messages
+  in full. Switching to it, it necessarily knows what was just said.
+- **`-p` / codex** are stateful: the CLI keeps a session on that machine, and a
+  resumed turn sends only the newest message.
+
+That leaves one bite: a CLI session holds only **the turns it ran itself**. Say
+five turns happened on direct in between — switching back to `-p`, those five
+are not in its session.
+
+So the room resumes **only when the previous turn used the same backend**. After
+a switch it starts a fresh CLI session with the visible transcript inlined
+instead. The cost is a slower first turn after switching; what it buys is that
+"it should know what we just said" stays true.
+
+The two CLIs keep their session ids in separate slots — handing a Claude session
+id to `codex exec resume` simply fails, so one shared slot would break on the
+first switch.
+
 ### codex (another vendor's CLI)
 
 A third generation backend, alongside `-p`: the reply is produced by the **Codex
