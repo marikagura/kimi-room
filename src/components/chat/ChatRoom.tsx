@@ -2727,8 +2727,13 @@ function MessageItem({
     ) : (
       <span aria-hidden />
     );
+    // 86% of the content track, which is about the 76%-of-the-row this used to be
+    // once the portrait gutter is taken out. A ceiling, not a width — a short line
+    // still gets a short bubble; this only stops a long one running edge to edge.
     const cell = (
-      <div style={{ minWidth: 0, justifySelf: mine ? "end" : "start", maxWidth: "100%" }}>{content}</div>
+      <div style={{ minWidth: 0, justifySelf: mine ? "end" : "start", maxWidth: "86%" }}>
+        {content}
+      </div>
     );
     return mine ? (
       <>
