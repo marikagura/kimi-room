@@ -2592,9 +2592,11 @@ function MessageItem({
         flexDirection: "column",
         alignItems: mine ? "flex-end" : "flex-start",
         gap: 4,
+        // A ceiling, not a width — a short line gets a short bubble, and only a
+        // long one reaches this and wraps.
         maxWidth: avatarsOn ? "76%" : "82%",
         minWidth: 0,
-        flex: "0 1 auto",
+        justifySelf: mine ? "end" : "start",
       }}
     >
       {!avatarsOn && (
@@ -2694,17 +2696,30 @@ function MessageItem({
       )}
 
       {avatarsOn ? (
-        // 6c — round portrait beside the bubble, the other voice left and mine right
+        // 6c — round portrait beside the bubble, the other voice left and mine
+        // right. A grid, like the spine layout below, rather than a flex row:
+        // as a `flex: 0 1 auto` item the column gets squeezed to min-content,
+        // and min-content for Chinese is one character — every bubble collapses
+        // into a single vertical column of glyphs. A grid track does not squeeze.
         <div
           style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "flex-start",
-            flexDirection: mine ? "row-reverse" : "row",
+            display: "grid",
+            gridTemplateColumns: mine ? "1fr 32px" : "32px 1fr",
+            gap: "0 8px",
+            alignItems: "start",
           }}
         >
-          <Avatar p={p} mine={mine} src={avatarUrl} size={32} />
-          {body}
+          {mine ? (
+            <>
+              {body}
+              <Avatar p={p} mine={mine} src={avatarUrl} size={32} />
+            </>
+          ) : (
+            <>
+              <Avatar p={p} mine={mine} src={avatarUrl} size={32} />
+              {body}
+            </>
+          )}
         </div>
       ) : (
         // 6a / 6b — node on the spine, the turn hanging off it
