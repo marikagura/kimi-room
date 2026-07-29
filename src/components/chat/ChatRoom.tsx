@@ -18,6 +18,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -1267,6 +1268,20 @@ export function ChatRoom() {
     >
       <style>{ARCVS_KEYFRAMES}</style>
 
+      {/* 环境光。画在 mood 图**之前** —— 它在这之后的话就盖在图上面, 而昼色那道
+          光是 50% 0% 处几乎不透明的一团奶白, 会把整张图的上三分之一洗掉 (顶上最狠,
+          正好是页首那一段)。有图的时候再压一档: 光是底色, 不该跟图抢。 */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: p.glow,
+          opacity: bg.url ? 0.35 : 1,
+          zIndex: 0,
+          pointerEvents: "none",
+        }}
+      />
       {/* mood picture. "adapt" shows the whole frame over a blurred bleed of
           itself, so nothing is cropped away and the edges still reach the
           screen; "fill" is the old crop-to-cover for anyone who prefers it. */}
@@ -1301,7 +1316,6 @@ export function ChatRoom() {
         </div>
       )}
       {/* the warm wash at the head of the page */}
-      <div aria-hidden style={{ position: "absolute", inset: 0, background: p.glow, zIndex: 0, pointerEvents: "none" }} />
       {/* rising dust — the one purely atmospheric layer, gone under reduced motion */}
       <div
         className="arcvs-dust"
@@ -2516,12 +2530,15 @@ function MessageItem({
   // that holds it, not here: a percentage on a shrink-to-fit box measures
   // against its own resolved width and folds short lines in half.
   const segments = msg.content && !linkOnly ? splitParagraphs(msg.content) : [];
-  const bubble = segments.length ? (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", gap: 4, maxWidth: "100%" }}>
-      {segments.map((seg, i) => {
-        const first = i === 0;
-        const last = i === segments.length - 1;
-        return (
+  /**
+   * One bubble per paragraph, each on its own. With avatars on they become one
+   * row each with their own portrait beside them — the way a messenger shows a
+   * run of short messages — so the grouping is decided by the caller, not here.
+   */
+  const bubbleNodes = segments.map((seg, i) => {
+    const first = i === 0;
+    const last = i === segments.length - 1;
+    return (
           <div
             key={i}
             style={{
@@ -2578,27 +2595,42 @@ function MessageItem({
               />
             )}
             {renderEmphasis(seg)}
-          </div>
-        );
-      })}
-    </div>
-  ) : null;
+      </div>
+    );
+  });
 
-  // Everything that hangs off one turn, in order.
-  const body = (
+  /** No-avatar path: the paragraphs stacked as one column. */
+  const bubbleColumn = bubbleNodes.length ? (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: mine ? "flex-end" : "flex-start",
         gap: 4,
-        // A ceiling, not a width — a short line gets a short bubble, and only a
-        // long one reaches this and wraps.
-        maxWidth: avatarsOn ? "76%" : "82%",
-        minWidth: 0,
-        justifySelf: mine ? "end" : "start",
+        maxWidth: "100%",
       }}
     >
+      {bubbleNodes}
+    </div>
+  ) : null;
+
+  // Everything that hangs off one turn, in order.
+  // A turn's non-bubble parts in two halves: before the bubbles (byline,
+  // thinking, tools) and after them (picture, link card, marks, cost). Split
+  // because the avatar path inserts "one row per paragraph, one portrait each"
+  // between them, and neither half takes a portrait — they are not something
+  // anyone said.
+  const columnStyle = {
+    display: "flex" as const,
+    flexDirection: "column" as const,
+    alignItems: mine ? ("flex-end" as const) : ("flex-start" as const),
+    gap: 4,
+    minWidth: 0,
+    maxWidth: "100%",
+  };
+
+  const bodyBefore = (
+    <div style={columnStyle}>
       {!avatarsOn && (
         <span style={{ fontSize: 6, letterSpacing: 2, color: mine ? p.roseDim : p.goldDim, fontFamily: FONT_LATIN }}>
           {mine ? "EGO" : "ILLE"} · <span style={ONUM}>{clockLabel}</span>
@@ -2625,7 +2657,11 @@ function MessageItem({
         </div>
       )}
 
-      {bubble}
+    </div>
+  );
+
+  const bodyAfter = (
+    <div style={columnStyle}>
 
       {msg.image && (
         <ImageBubble
@@ -2677,6 +2713,36 @@ function MessageItem({
     </div>
   );
 
+  /**
+   * One row, two cells: content plus a portrait slot, ordered by `mine` so the
+   * content always lands on the wide track. With withAvatar false the slot stays
+   * empty — thinking, tools and marks are not something anyone said, so they get
+   * no portrait, but the cell still has to be there or they would sit a
+   * portrait's width out of line with the bubbles.
+   */
+  const pair = (content: ReactNode, withAvatar: boolean) => {
+    if (!content) return null;
+    const slot = withAvatar ? (
+      <Avatar p={p} mine={mine} src={avatarUrl} size={32} />
+    ) : (
+      <span aria-hidden />
+    );
+    const cell = (
+      <div style={{ minWidth: 0, justifySelf: mine ? "end" : "start", maxWidth: "100%" }}>{content}</div>
+    );
+    return mine ? (
+      <>
+        {cell}
+        {slot}
+      </>
+    ) : (
+      <>
+        {slot}
+        {cell}
+      </>
+    );
+  };
+
   return (
     <div style={{ marginTop: showTs ? 10 : 0 }}>
       {showTs && (
@@ -2709,17 +2775,13 @@ function MessageItem({
             alignItems: "start",
           }}
         >
-          {mine ? (
-            <>
-              {body}
-              <Avatar p={p} mine={mine} src={avatarUrl} size={32} />
-            </>
-          ) : (
-            <>
-              <Avatar p={p} mine={mine} src={avatarUrl} size={32} />
-              {body}
-            </>
-          )}
+          {pair(bodyBefore, false)}
+          {/* One row per paragraph, each with its own portrait — a messenger
+              shows a run of short messages that way, not sharing one. */}
+          {bubbleNodes.map((node, i) => (
+            <Fragment key={`b${i}`}>{pair(node, true)}</Fragment>
+          ))}
+          {pair(bodyAfter, false)}
         </div>
       ) : (
         // 6a / 6b — node on the spine, the turn hanging off it
@@ -2736,8 +2798,21 @@ function MessageItem({
               margin: "4px auto 0",
             }}
           />
-          <div style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", minWidth: 0 }}>
-            {body}
+          {/* No-avatar path: one column, the two halves around the bubbles. */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: mine ? "flex-end" : "flex-start",
+              gap: 4,
+              maxWidth: "82%",
+              minWidth: 0,
+              justifySelf: mine ? "end" : "start",
+            }}
+          >
+            {bodyBefore}
+            {bubbleColumn}
+            {bodyAfter}
           </div>
         </div>
       )}
