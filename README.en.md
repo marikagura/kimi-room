@@ -314,6 +314,24 @@ only breaks the rows apart.
 
 Under `prefers-reduced-motion` every animation stops and the dust disappears; no information is lost.
 
+### Closeout and the fresh window
+
+Two buttons on one row at the bottom of the `⋯` drawer, one job each:
+
+- **新窗口** (fresh window) — opens a new window and nothing else. The old
+  conversation stays in the chat history, reachable any time, so there is no
+  confirm. Needs no backend; always available.
+- **closeout** — has your configured generation backend summarize the window
+  (a title within 40 characters, plus the full text), stores it in the room's
+  own memory store (browsable and editable at `/room/memory-review`), then
+  clears the session and opens a fresh window. Because it writes and clears, it
+  confirms once. Without a generation backend the button sits disabled — there
+  is nothing to summarize with, and pretending otherwise would just silently
+  turn it into the other button.
+
+A failed summary does not block the door: the fresh window opens anyway,
+without the memory write.
+
 ### Pictures stop at the front end
 
 A picture you pick is downscaled, stored in IndexedDB and drawn in its bubble — but it is **not sent

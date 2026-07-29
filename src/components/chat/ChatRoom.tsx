@@ -1090,6 +1090,26 @@ export function ChatRoom() {
     if (restored) setDraft(restored);
   }
 
+  /**
+   * A fresh window and nothing else: no summary, no memory write, no backend.
+   * The old session stays in the chat store, so the history page can reach it —
+   * nothing is lost, which is why there is no confirm.
+   */
+  function freshWindow() {
+    setSession({
+      sessionId: `session-${Date.now()}`,
+      startedAt: new Date().toISOString(),
+      msgs: [
+        {
+          id: `m-${Date.now()}`,
+          role: "assistant",
+          content: "新窗. 接着说.",
+          ts: new Date().toISOString(),
+        },
+      ],
+    });
+  }
+
   async function newWindow() {
     if (
       !confirm(
@@ -1394,6 +1414,8 @@ export function ChatRoom() {
             store(CONTEXT_MAX_KEY, String(n));
           }}
           onCloseout={newWindow}
+          onFresh={freshWindow}
+          closeoutReady={isProviderConfigured(pCap)}
         />
       )}
 
@@ -1916,6 +1938,8 @@ function SettingsDrawer({
   onFontScale,
   onContextMax,
   onCloseout,
+  onFresh,
+  closeoutReady,
 }: {
   p: Palette;
   theme: ChatTheme;
@@ -1934,6 +1958,9 @@ function SettingsDrawer({
   onFontScale: (v: number) => void;
   onContextMax: (n: number) => void;
   onCloseout: () => void;
+  onFresh: () => void;
+  /** A generation backend exists, so closeout can actually summarize. */
+  closeoutReady: boolean;
 }) {
   const heading = {
     fontSize: 9,
@@ -2133,25 +2160,56 @@ function SettingsDrawer({
         )}
       </Link>
 
-      <button
-        type="button"
-        onClick={onCloseout}
-        style={{
-          width: "100%",
-          padding: "7px 10px",
-          fontSize: 10,
-          letterSpacing: 2,
-          border: `1px solid ${p.theme === "day" ? p.roseHi : p.gold}`,
-          background: p.theme === "day" ? "rgba(176,64,99,.08)" : "rgba(230,205,150,.08)",
-          color: p.theme === "day" ? p.roseHi : p.goldHi,
-          cursor: "pointer",
-          fontFamily: FONT_LATIN,
-          borderRadius: 6,
-          textTransform: "uppercase",
-        }}
-      >
-        closeout · 新窗口
-      </button>
+      {/* Two doors on one row, one job each: closeout summarizes into memory
+          and then opens a fresh window; 新窗口 only opens the window. Without a
+          generation backend closeout has nothing to summarize with, so it sits
+          disabled rather than silently degrading into the other button. */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          type="button"
+          onClick={onCloseout}
+          disabled={!closeoutReady}
+          title={closeoutReady ? "总结存进 memory, 再开新窗" : "要先配一个生成后端"}
+          style={{
+            flex: 1,
+            padding: "7px 4px",
+            fontSize: 10,
+            letterSpacing: 2,
+            border: `1px solid ${closeoutReady ? (p.theme === "day" ? p.roseHi : p.gold) : p.ruleSoft}`,
+            background: closeoutReady
+              ? p.theme === "day"
+                ? "rgba(176,64,99,.08)"
+                : "rgba(230,205,150,.08)"
+              : "transparent",
+            color: closeoutReady ? (p.theme === "day" ? p.roseHi : p.goldHi) : p.inkMute,
+            cursor: closeoutReady ? "pointer" : "default",
+            opacity: closeoutReady ? 1 : 0.55,
+            fontFamily: FONT_LATIN,
+            borderRadius: 6,
+            textTransform: "uppercase",
+          }}
+        >
+          closeout
+        </button>
+        <button
+          type="button"
+          onClick={onFresh}
+          style={{
+            flex: 1,
+            padding: "7px 4px",
+            fontSize: 10,
+            letterSpacing: 2,
+            border: `1px solid ${p.theme === "day" ? p.roseHi : p.gold}`,
+            background: p.theme === "day" ? "rgba(176,64,99,.08)" : "rgba(230,205,150,.08)",
+            color: p.theme === "day" ? p.roseHi : p.goldHi,
+            cursor: "pointer",
+            fontFamily: FONT_CN,
+            borderRadius: 6,
+          }}
+        >
+          新窗口
+        </button>
+      </div>
       <Link
         href="/chat/history"
         style={{
