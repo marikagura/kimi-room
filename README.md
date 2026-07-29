@@ -274,26 +274,42 @@ CLAUDE_P_ALLOWED_TOOLS=          # 留空 = 只出文字
 
 `prefers-reduced-motion` 下所有动画停、浮尘消失，信息一条不少。
 
-### 换成别家的 CLI？
+### codex（别家的 CLI）
 
-`CLAUDE_P_BIN` 只是「claude 不在 PATH 上时填路径」，不是「换一个 agent CLI」的开关。
-这条路由是照 Claude CLI 的形状写的：`-p --output-format stream-json
---include-partial-messages`，以及它那套 `stream_event` / `text_delta` 事件名。
+第三条生成路，跟 `-p` 并列：把回复交给这台机器上的 **Codex CLI**。同样按部署开关，
+不开就整个不出现。
 
-别家确有非交互模式，但形状不同。以 Codex 为例（实测 codex-cli 0.139）：
+```
+CODEX_ENABLED=1
+CODEX_BIN=codex                  # 不在 PATH 上时填路径
+CODEX_CWD=                        # 留空 = home
+CODEX_MODELS=                    # 留空 = 用 ~/.codex/config.toml 里的那个
+CODEX_SANDBOX=read-only          # workspace-write | danger-full-access
+```
 
-- 入口是 `codex exec`，不是 `-p`——而且它的 `-p` 是 `--profile`，把 `CLAUDE_P_BIN`
-  指过去不会干脆报错，只会莫名其妙。
-- 事件是 `thread.started` / `turn.started` / `item.completed` / `turn.completed`，
-  跟这里解析的那套没有一个对得上。
-- `--json` 给的是整条 item，不是逐字增量。界面上那些「一个字一个字浮出来」和沉吟
-  计秒会退化成一次性落地。
+`CODEX_MODELS` 默认留空是有意的：这个仓无从知道你的账号能用哪些模型，猜一张表出来
+只会是一份「点了就报错」的菜单。留空时切换器就一行「默认模型」，用 CLI 自己配的。
 
-好消息是接口那一层留好了缝：`src/lib/chat-provider.ts` 的 `ChatProvider` 就是为了
-这个——加一家是**再写一个 provider**，不是改这条路由。真去写的话，Codex 那侧反而
-有两样这里没有的：`thread_id` 是 UUID、`codex exec resume` 能续，会话模型对得上；
-`turn.completed` 报 `cached_input_tokens`，缓存那一格能真填上；它还能直接吃图
-（`-i, --image`）——正是 Claude 这条路做不到的那件。
+沙箱默认 `read-only`——没有人在终端边上批准任何事。往上开等于让聊天能写真实文件。
+
+**为什么是另一条路由，不是 `CLAUDE_P_BIN=codex`。** 两个 CLI 除了「本机跑一个 agent」
+这个想法之外没有共通处：Codex 的入口是 `codex exec` 不是 `-p`（它自己的 `-p` 是
+`--profile`），事件是 `thread.started` / `item.completed` / `turn.completed`，跟
+Claude 那套 `stream_event` / `text_delta` 一个都对不上。一条路由同时当两家，等于每行
+都要分叉。共用的是**信任边界**和**发给浏览器的帧**——界面那边分不出是谁答的。
+
+跟 `-p` 相比，两处差别在界面上看得见：
+
+- **不逐字浮现。** `--json` 给的是整条 item，所以回复一次性落地，不是一个字一个字出来。
+- **缓存那一格能真填上。** 每轮 `turn.completed` 报 `cached_input_tokens`，裸 API
+  端点多数不报，这一格常年是空的。
+
+实测下来还有一处不明显的坑，已经绕开：`codex exec resume` 是独立子命令，**不收 `-s`**，
+所以沙箱是用 `-c sandbox_mode=` 传的——用 `-s` 的话第一轮好、之后每一轮都报错。
+
+要再接别家（Gemini、Cursor…）照这个形状走：`src/lib/chat-provider.ts` 的
+`ChatProvider` 就是那道缝，两条 CLI 路已经共用一份 `cliProvider`，加第三家是补一条
+路由加几行表，不动已有的。
 
 ### closeout 与新窗口
 

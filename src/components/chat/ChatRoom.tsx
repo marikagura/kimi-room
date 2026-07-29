@@ -38,7 +38,9 @@ import {
 import {
   isProviderConfigured,
   probeP,
+  probeCodex,
   pProfile,
+  codexProfile,
   readActiveProviderChoice,
   resolveProvider,
   writeActiveProviderChoice,
@@ -333,11 +335,13 @@ export function ChatRoom() {
   // ── providers ──
   const [llmSettings, setLlmSettings] = useState<LLMSettings | null>(null);
   const [pCap, setPCap] = useState<PCapability | null>(null);
+  const [codexCap, setCodexCap] = useState<PCapability | null>(null);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [providerTick, setProviderTick] = useState(0); // re-read the choice after a pick
   useEffect(() => {
     setLlmSettings(loadLLMSettings());
     void probeP().then(setPCap);
+    void probeCodex().then(setCodexCap);
   }, []);
   useEffect(() => {
     const refresh = () => setLlmSettings(loadLLMSettings());
@@ -617,10 +621,10 @@ export function ChatRoom() {
   const bg = useMemo(() => BG_OPTIONS.find((b) => b.id === bgId) ?? BG_OPTIONS[0], [bgId]);
   const sendArt = SEND_ART[theme];
   const provider = useMemo(
-    () => resolveProvider(pCap),
+    () => resolveProvider(pCap, codexCap),
     // llmSettings / providerTick both stand for "the pick may have changed"
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pCap, llmSettings, providerTick],
+    [pCap, codexCap, llmSettings, providerTick],
   );
 
   // Cost bar. Cache share and price only exist when the backend reports them —
@@ -1535,6 +1539,7 @@ export function ChatRoom() {
           p={p}
           settings={llmSettings}
           cap={pCap}
+          codexCap={codexCap}
           open={showModelPicker}
           onToggle={() => setShowModelPicker((v) => !v)}
           onPickDirect={(pid, model) => {
@@ -1546,6 +1551,11 @@ export function ChatRoom() {
           }}
           onPickP={(model) => {
             writeActiveProviderChoice("p", model);
+            setProviderTick((n) => n + 1);
+            setShowModelPicker(false);
+          }}
+          onPickCodex={(model) => {
+            writeActiveProviderChoice("codex", model);
             setProviderTick((n) => n + 1);
             setShowModelPicker(false);
           }}
@@ -1735,14 +1745,18 @@ function ModelSwitcher({
   onToggle,
   onPickDirect,
   onPickP,
+  onPickCodex,
+  codexCap,
 }: {
   p: Palette;
   settings: LLMSettings | null;
   cap: PCapability | null;
+  codexCap: PCapability | null;
   open: boolean;
   onToggle: () => void;
   onPickDirect: (profileId: string, model: string) => void;
   onPickP: (model: string) => void;
+  onPickCodex: (model: string) => void;
 }) {
   const profiles = settings?.profiles ?? [];
   const withModels = profiles.filter((pf) => pf.models.length > 0);
@@ -1750,13 +1764,16 @@ function ModelSwitcher({
   const active = profiles.find((pf) => pf.id === settings?.activeProfileId) ?? profiles[0];
   const activeModel = settings?.activeModel || active?.models[0] || "";
   const pOn = !!cap?.enabled;
+  const codexOn = !!codexCap?.enabled;
 
   const label =
-    choice.kind === "p" && pOn
-      ? `claude -p · ${choice.model || cap?.models?.[0] || "sonnet"}`
-      : active
-        ? `${active.name || "未命名"} · ${activeModel || "no model"}`
-        : "配置后端";
+    choice.kind === "codex" && codexOn
+      ? `codex · ${choice.model || "本机"}`
+      : choice.kind === "p" && pOn
+        ? `claude -p · ${choice.model || cap?.models?.[0] || "sonnet"}`
+        : active
+          ? `${active.name || "未命名"} · ${activeModel || "no model"}`
+          : "配置后端";
 
   const group = {
     fontSize: 9,
@@ -1832,7 +1849,38 @@ function ModelSwitcher({
             </div>
           )}
 
-          {withModels.length === 0 && !pOn ? (
+          {codexOn && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={group}>
+                {codexProfile(codexCap!).name}
+                <span style={{ marginLeft: 6, opacity: 0.7 }}>cli</span>
+              </div>
+              {codexProfile(codexCap!).models.map((m) => (
+                <button
+                  key={m || "default"}
+                  type="button"
+                  onClick={() => onPickCodex(m)}
+                  style={item(choice.kind === "codex" && choice.model === m)}
+                >
+                  {m || "默认模型"}
+                </button>
+              ))}
+              <div
+                style={{
+                  fontSize: 8.5,
+                  lineHeight: 1.6,
+                  letterSpacing: 0.5,
+                  color: p.inkMute,
+                  padding: "4px 8px 0",
+                  fontFamily: FONT_CN,
+                }}
+              >
+                跑在本机的 codex · 回复整条落地, 不逐字浮现
+              </div>
+            </div>
+          )}
+
+          {withModels.length === 0 && !pOn && !codexOn ? (
             <Link
               href="/backstage/settings"
               style={{ display: "block", fontSize: 11, color: p.inkSoft, padding: "6px 4px", textDecoration: "none" }}
@@ -1904,7 +1952,12 @@ function ModelSwitcher({
             width: 5,
             height: 5,
             borderRadius: "50%",
-            background: choice.kind === "p" && pOn ? p.warn : active?.apiKey ? p.gold : p.inkMute,
+            background:
+              (choice.kind === "p" && pOn) || (choice.kind === "codex" && codexOn)
+                ? p.warn
+                : active?.apiKey
+                  ? p.gold
+                  : p.inkMute,
             display: "inline-block",
             opacity: 0.85,
           }}

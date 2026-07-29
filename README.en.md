@@ -314,30 +314,51 @@ only breaks the rows apart.
 
 Under `prefers-reduced-motion` every animation stops and the dust disappears; no information is lost.
 
-### Pointing it at another vendor's CLI
+### codex (another vendor's CLI)
 
-`CLAUDE_P_BIN` means "where claude lives if it is not on PATH" — it is not a
-switch for swapping in a different agent CLI. This route is written to Claude's
-shape: `-p --output-format stream-json --include-partial-messages`, and its
-`stream_event` / `text_delta` vocabulary.
+A third generation backend, alongside `-p`: the reply is produced by the **Codex
+CLI** on this machine. Opt-in per deployment; unset, it does not appear at all.
 
-Other CLIs do have a non-interactive mode, in a different shape. Codex, measured
-on codex-cli 0.139:
+```
+CODEX_ENABLED=1
+CODEX_BIN=codex                  # path, if not on PATH
+CODEX_CWD=                        # defaults to the home directory
+CODEX_MODELS=                    # empty = whatever ~/.codex/config.toml says
+CODEX_SANDBOX=read-only          # workspace-write | danger-full-access
+```
 
-- the entry point is `codex exec`, not `-p` — and its `-p` is `--profile`, so
-  pointing `CLAUDE_P_BIN` at it misfires instead of failing cleanly.
-- events are `thread.started` / `turn.started` / `item.completed` /
-  `turn.completed`; none of the names this route parses appear.
-- `--json` emits whole items, not token deltas. The text arriving a character at
-  a time, and the thinking box counting up, degrade to one lump landing at once.
+`CODEX_MODELS` is empty on purpose: this repository cannot know which models your
+account reaches, and a guessed list would just be a menu of errors. Left empty,
+the switcher shows one row and the CLI uses its own configured model.
 
-The seam for this is already in place: `ChatProvider` in
-`src/lib/chat-provider.ts` exists so that adding a vendor is **another provider**
-rather than a change to this route. Worth knowing before writing one: Codex has
-two things this path does not — its `thread_id` is a UUID and `codex exec resume`
-continues a session, so the session model maps over; `turn.completed` reports
-`cached_input_tokens`, so the cache gauge could actually be fed; and it takes
-images directly (`-i, --image`), which is exactly what the Claude path cannot do.
+The sandbox defaults to `read-only` — nobody is at the terminal to approve
+anything. Opening it further lets the chat write real files.
+
+**Why a separate route rather than `CLAUDE_P_BIN=codex`.** The two CLIs share
+nothing but the idea of running an agent locally: Codex's entry point is `codex
+exec`, not `-p` (its own `-p` is `--profile`), and it reports `thread.started` /
+`item.completed` / `turn.completed` — none of Claude's `stream_event` /
+`text_delta` vocabulary. One route serving both would branch on every line. What
+they do share is the trust boundary and the frames sent to the browser: the
+interface cannot tell which CLI answered.
+
+Two differences from `-p` are visible in the room:
+
+- **No token-level streaming.** `--json` emits whole items, so a reply lands in
+  one piece rather than arriving a character at a time.
+- **The cache gauge is actually fed.** Every `turn.completed` reports
+  `cached_input_tokens`; most raw API endpoints never report it, leaving that
+  reading blank.
+
+One non-obvious trap, found by running it and already worked around: `codex exec
+resume` is its own subcommand and **does not take `-s`**, so the sandbox is passed
+as `-c sandbox_mode=` instead. With the flag form the first turn works and every
+turn after it fails.
+
+Adding another vendor (Gemini, Cursor, …) follows this shape: `ChatProvider` in
+`src/lib/chat-provider.ts` is the seam, both CLI backends already share one
+`cliProvider`, and a third is a route plus a few table entries — nothing existing
+has to move.
 
 ### Closeout and the fresh window
 
