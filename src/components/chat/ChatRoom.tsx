@@ -2666,21 +2666,29 @@ function MessageItem({
     </div>
   );
 
-  const bodyAfter = (
-    <div style={columnStyle}>
-
-      {msg.image && (
-        <ImageBubble
+  /**
+   * A picture and a link card are also things someone sent, so they belong with
+   * the bubbles: one row each, one portrait each. The marks and the cost below
+   * are not — those are the turn's footnotes.
+   */
+  const mediaNodes: ReactNode[] = [];
+  if (msg.image) {
+    mediaNodes.push(<Fragment key="img"><ImageBubble
           p={p}
           imageId={msg.image.id}
           src={msg.image.url}
           w={msg.image.w}
           h={msg.image.h}
           timeLabel={avatarsOn ? clockLabel : undefined}
-        />
-      )}
+        /></Fragment>);
+  }
+  if (msg.link) {
+    mediaNodes.push(<Fragment key="link"><LinkCard p={p} link={msg.link} mine={mine} compact={avatarsOn} /></Fragment>);
+  }
 
-      {msg.link && <LinkCard p={p} link={msg.link} mine={mine} compact={avatarsOn} />}
+  const bodyAfter = (
+    <div style={columnStyle}>
+
 
       {!mine && msg.content && !streaming && (
         <ActionMarks
@@ -2792,6 +2800,10 @@ function MessageItem({
           {bubbleNodes.map((node, i) => (
             <Fragment key={`b${i}`}>{pair(node, true)}</Fragment>
           ))}
+          {/* The picture and the link card get a row and a portrait too. */}
+          {mediaNodes.map((node, i) => (
+            <Fragment key={`m${i}`}>{pair(node, true)}</Fragment>
+          ))}
           {pair(bodyAfter, false)}
         </div>
       ) : (
@@ -2823,6 +2835,7 @@ function MessageItem({
           >
             {bodyBefore}
             {bubbleColumn}
+            {mediaNodes}
             {bodyAfter}
           </div>
         </div>
