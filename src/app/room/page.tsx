@@ -148,9 +148,16 @@ export default async function RoomPage() {
 
   const arcGradId = `kimi-6a-arc-${mode}`;
 
+  // 一处定尺寸, 别处都从它算 —— 星盘、它的光晕、中心那枚记号是同一个东西的三层,
+  // 各写各的 clamp 就会在某个屏宽上错开。
+  const DIAL = "clamp(118px, 17svh, 150px)";
+
   return (
     <main
       style={{
+        // 让 svg 跟着外面那层盒子走 —— 这些组件的 size 只收数字, 包一层再让它
+        // 撑满, 就不必为了自适应去改每个组件的签名。
+        ["--kimi-dial" as string]: DIAL,
         // svh 不是 dvh: iOS 工具栏结算时 dvh 反复变 → footer (marginTop auto)
         // 跟着跳. svh 固定用最小视口值.
         minHeight: "100svh",
@@ -181,6 +188,12 @@ export default async function RoomPage() {
           100% { transform: rotate(360deg); filter: drop-shadow(0 0 8px rgba(212,154,86,0.32)) drop-shadow(0 0 14px rgba(212,154,86,0.18)); }
         }
         .kimi-moon-idle { animation: kimi-moon-idle 90s linear infinite; display: inline-block; line-height: 0; }
+        /* 自适应: 包一层给宽度, 里面的 svg 撑满 —— 组件的 size 只收数字 */
+        .kimi-fit { display: block; line-height: 0; }
+        .kimi-fit > svg, .kimi-fit > span > svg { width: 100%; height: auto; display: block; }
+        /* 地色顶到 html/body: 整屏之外还看得到的那几处 (工具条收起、回弹、
+           home indicator 那一带) 露出来的是底下那层, 底下若是另一种黑就成一道线 */
+        html, body { background: ${isDay ? "#EAE0D2" : "#0A0805"}; }
         /* 巴洛克光效 (夜) */
         @keyframes kimi-vitrail { 0%,100%{opacity:.12} 50%{opacity:.8} }
         @keyframes kimi-mote { 0%{transform:translateY(0);opacity:0} 12%{opacity:.8} 82%{opacity:.45} 100%{transform:translateY(290px);opacity:0} }
@@ -248,10 +261,12 @@ export default async function RoomPage() {
 
         {/* 双马赛克角饰对称 */}
         <div aria-hidden style={{ position: "absolute", top: 12, left: 12, color: t.hair, opacity: 0.6, zIndex: 3 }}>
-          <MuchaMosaic color={t.hair} accent={t.accent} size={40} />
+          <span className="kimi-fit" style={{ width: "clamp(30px, 8.5svw, 40px)" }}><MuchaMosaic color={t.hair} accent={t.accent} size={40} /></span>
         </div>
         <div aria-hidden style={{ position: "absolute", top: 12, right: 12, color: t.hair, opacity: 0.6, transform: "scaleX(-1)", zIndex: 3 }}>
-          <MuchaMosaic color={t.hair} accent={t.accent} size={40} />
+          <span className="kimi-fit" style={{ width: "clamp(30px, 8.5svw, 40px)" }}>
+            <MuchaMosaic color={t.hair} accent={t.accent} size={40} />
+          </span>
         </div>
 
         {/* 弓拱 + 双头像徽章 (区高随屏 clamp — meet 缩放下徽章中心恒在 112/190≈59% 处,
@@ -280,6 +295,9 @@ export default async function RoomPage() {
               />
             ))}
           <div style={{ position: "absolute", left: "50%", top: "59%", transform: "translate(-50%, -50%)", zIndex: 4 }}>
+            {/* 不包 kimi-fit: 它不是裸 svg 而是两个头像并排的一行, 那条 `> svg` 规则够不着,
+                外面的盒子约束不住里面的宽度, 内容会从盒子左边往右溢出 —— 盒子居中而
+                内容不居中, 整对就右偏。54px 在 320 宽上也不挤, 这一处不必随屏。 */}
             <DualAvatarsClient size={54} accent={t.avRing} gap={-6} />
           </div>
         </div>
@@ -290,8 +308,8 @@ export default async function RoomPage() {
             aria-hidden
             style={{
               position: "absolute",
-              width: 210,
-              height: 210,
+              width: "calc(var(--kimi-dial) * 1.4)",
+              height: "calc(var(--kimi-dial) * 1.4)",
               borderRadius: "50%",
               background: isDay
                 ? "radial-gradient(circle, rgba(202,122,155,.18) 0%, rgba(202,122,155,0) 62%)"
@@ -300,13 +318,17 @@ export default async function RoomPage() {
             }}
           />
           <Link href="/chat" style={{ lineHeight: 0, position: "relative" }} aria-label="open chat">
-            <CelestialDial size="clamp(118px, 17svh, 150px)" illumination={illumination} colors={t.dial} mode={mode} spin>
+            <CelestialDial size={DIAL} illumination={illumination} colors={t.dial} mode={mode} spin>
               {isDay ? (
-                <RoseBloomDial size={74} />
+                <span className="kimi-fit" style={{ width: "calc(var(--kimi-dial) * 0.49)" }}>
+                  <RoseBloomDial size={74} />
+                </span>
               ) : (
                 // MoonPhaseSvg 不吃 className → 包一层 span 挂 90s 自转 + 金晕呼吸.
-                <span className="kimi-moon-idle">
-                  <MoonPhaseSvg phase={moon.fraction} size={74} glow={false} />
+                <span className="kimi-fit" style={{ width: "calc(var(--kimi-dial) * 0.49)" }}>
+                  <span className="kimi-moon-idle">
+                    <MoonPhaseSvg phase={moon.fraction} size={74} glow={false} />
+                  </span>
                 </span>
               )}
             </CelestialDial>
@@ -314,14 +336,14 @@ export default async function RoomPage() {
         </div>
 
         {/* 分隔线 — Mucha 藤蔓 */}
-        <div style={{ padding: "6px 70px 0", color: t.hair, position: "relative", zIndex: 1, animation: "kimi-fadeup .7s ease .2s both" }}>
+        <div style={{ padding: "6px clamp(40px, 17svw, 70px) 0", color: t.hair, position: "relative", zIndex: 1, animation: "kimi-fadeup .7s ease .2s both" }}>
           <MuchaVine color={t.hair} accent={t.accent} />
         </div>
 
         {/* 房间卡 2×3 — 数据来自 resolveRoom() (addon 机制); 画法 = 中庭卡:
             弧顶填充渐变 + 顶心 accent 点 + 半透纸底 + hairline + 体积投影 + →.
             进场阶梯每格 .26 + i·.07. 卡高 / 格间随屏 clamp. */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(8px, 1.2svh, 10px)", padding: "12px 22px 0", flex: "none", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(8px, 1.2svh, 10px)", padding: "12px clamp(14px, 5.5svw, 22px) 0", flex: "none", position: "relative", zIndex: 1 }}>
           {tiles.map((m, i) => (
             <Link
               key={m.id}
@@ -357,7 +379,7 @@ export default async function RoomPage() {
               </svg>
               <div style={{ fontSize: 10, letterSpacing: 2, color: t.accent, fontStyle: "italic", marginTop: 5 }}>{ROMAN[i + 1] ?? i + 1}</div>
               <div>
-                <div style={{ fontSize: 19, color: t.ink, letterSpacing: 0.5, fontFamily: "var(--font-serif)", fontWeight: 400 }}>
+                <div style={{ fontSize: "clamp(16px, 2.4svh, 19px)", color: t.ink, letterSpacing: 0.5, fontFamily: "var(--font-serif)", fontWeight: 400 }}>
                   {m.name}
                 </div>
                 <div style={{ fontSize: 8, letterSpacing: 3, color: t.mute, marginTop: 2 }}>{m.sub}</div>

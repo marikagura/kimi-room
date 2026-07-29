@@ -185,3 +185,150 @@ vercel           # .vercel.app preview URL
 ```
 
 Set `NEXT_PUBLIC_KIMI_GATEWAY` env var to your own MCP/backend URL if wiring beyond client-side IDB + LLM proxy. Custom domain optional — point any owned domain at the Vercel project.
+
+---
+
+## Generation backends: direct and -p
+
+Chat generation goes through one `ChatProvider` interface (`src/lib/chat-provider.ts`) with two
+implementations behind it:
+
+```
+ChatProvider.send(turns, opts) → streaming deltas
+  ├─ direct   the browser calls a model endpoint with a key kept in the browser (default)
+  └─ -p       the browser calls this deployment's /api/p, which runs the local Claude CLI
+```
+
+kimi-core memory retrieval (RAG) is orthogonal to both: it only adds retrieved memory to the
+prompt, and either backend can be used with or without it.
+
+The interface does not distinguish the two. Picking a profile in the model switcher picks the
+backend.
+
+### -p mode
+
+`-p` hands the reply to **the Claude CLI on the machine hosting this deployment**. The reply then
+carries whatever that environment already has: its CLAUDE.md, its MCP servers, its subscription
+quota. This repository ships no Claude configuration of its own; everything in the harness comes
+from the deployer's environment.
+
+Turning it on (`.env`):
+
+```
+CLAUDE_P_ENABLED=1
+CLAUDE_P_BIN=claude              # path to the CLI, if not on PATH
+CLAUDE_P_CWD=/home/you           # working directory (default: home)
+CLAUDE_P_PERMISSION_MODE=default # default | acceptEdits | bypassPermissions | plan
+CLAUDE_P_ALLOWED_TOOLS=          # empty = text only
+```
+
+Without `CLAUDE_P_ENABLED`, or with no CLI on the machine, the option is **absent** from the model
+switcher — not greyed out, not there.
+
+Multi-turn: the `session_id` from the first response is stored on the thread and passed as
+`--resume` afterwards. One room thread maps to one CLI session; a branch does not inherit its
+parent's session, and a rewind drops the session handle so the next send matches what is on screen.
+
+Models: seven pinned ids are passed to `--model` — `claude-opus-5` / `-4-8` / `-4-7` / `-4-6`,
+`claude-sonnet-5` / `-4-5`, `claude-fable-5`. Pinned rather than floating aliases like `opus`, so
+that generations coexist: an alias always means the newest one, and the older ones lose their entry
+the moment a release lands. The cost is that this list goes stale — it is one array, and an id the
+installed CLI does not know fails loudly instead of quietly running something else.
+
+**Boundary.** `-p` spends the deployer's subscription, so:
+
+- `/api/p` checks the owner session first (the same gate `/api/core` and `/api/tts` use); without
+  it, 401. A visitor who finds the deployment URL never reaches the CLI.
+- Nothing from the browser enters a shell. There is no shell: `spawn()` takes an argv array and the
+  prompt goes over stdin. `model` is matched against a fixed id set and `resume` against a UUID
+  shape; anything else is rejected rather than sanitized and passed along.
+- The route writes no transcript to disk. The CLI keeps its own session store on the deployer's
+  machine — that is what `--resume` reads, and it is a feature rather than an export.
+- With `CLAUDE_P_ALLOWED_TOOLS` empty the reply is text only. Opening it up lets the chat read and
+  write real files; weigh that yourself.
+
+### The cost bar
+
+A row of three at the head of the page: cache hit rate (`MEMORIA`), context used against the window
+(`CONTEXTVS`), and today's spend (`IMPENSA`). Cache share and price appear only when the backend
+reports them — `-p` does, most raw API endpoints do not — and a missing reading is left out rather
+than shown as zero. The context gauge turns amber past 85% and red past 95%.
+
+That reading is a **gauge, not a governor**: the room sends the thread's messages in full, without
+trimming or merging, and keeps sending once the gauge is full — the real ceiling is whatever the
+upstream endpoint enforces. The `128K / 200K / 1M` steps only set the gauge's denominator; changing
+one does not change what is sent. (`-p` is separate — its history lives in the CLI's own session
+store on the deployer's machine, which is what `--resume` reads.)
+
+Putting a ceiling on it is yours to add: what gets sent is assembled in `streamReply()` in
+`src/components/chat/ChatRoom.tsx`, at the step mapping `msgs` into `turns` — trim from the oldest
+there, to whatever budget you keep. There is no built-in default because the right number depends on
+which endpoint you point this at and what it charges; guessing one for you would be worse than
+leaving it out.
+
+---
+
+## The chat surface
+
+One screen, three readings — switched from the header and the `⋯` drawer:
+
+- **Night (NOX)** — near-black ground, gold.
+- **Day (DIES)** — warm paper ground, rose. The sun/moon control swaps them; the two colourways are
+  one tree and the layout does not move.
+- **Avatars** — a switch. Off, messages hang from a hairline spine with a node per turn; on, round
+  portraits sit beside the bubbles (the other voice left, yours right). With no picture configured
+  each side draws its own mark, so turning avatars on never leaves a hole. Portraits can be picked
+  in the drawer (stored in IndexedDB) or pointed at a path under `public/` in code.
+
+Colour meanings are fixed: rose is you and sits right, gold is the other voice and sits left, grey
+is the system. New elements take their side from that.
+
+Under every reply, three bare marks: **copy** · **fork (FVRCA)** · **rewind (RETRO)** — no frames,
+no labels, solid only on hover.
+
+- Fork branches everything up to that message into a new thread. The original is untouched and stays
+  in the history list. No confirmation: nothing is lost.
+- Rewind drops that message and everything after it, and puts the message that prompted it back in
+  the composer. **The one action that asks first**, because it removes turns.
+- Regenerate produces another candidate; the old one goes into a pool rather than being lost, and
+  `‹ n/m ›` moves between them.
+
+Also: **listen** (via `/api/tts`, quiet without an ElevenLabs key), image upload (front end only,
+see below), and link cards built from og tags when a link is
+posted on its own (no og:image falls back to a paper ground and a diamond, never an empty frame).
+The scraped title travels with the turn as well — drawn only on the card, what reaches the model is
+still a URL it cannot open.
+
+The `COGITATIO` box counts up a second at a time while streaming and stops at its total. Tool calls
+get one line each with three states — running shows a soft dot, done a tick and the elapsed time,
+failed keeps the message in place in the error colour (quieter, never hidden) — and open to show
+their arguments.
+
+The background can be swapped for any picture in `public/images/mood` from the drawer, in two fits:
+**whole** (the full frame over a blurred bleed of itself, nothing cropped) and **fill** (cropped to
+cover).
+
+Body size sits in the same drawer, in four steps. Bubble text and the thinking box follow it; the
+latin small-caps labels do not — they are a scale rather than something to read, and enlarging them
+only breaks the rows apart.
+
+Under `prefers-reduced-motion` every animation stops and the dust disappears; no information is lost.
+
+### Pictures stop at the front end
+
+A picture you pick is downscaled, stored in IndexedDB and drawn in its bubble — but it is **not sent
+to the model**. Both backends here take a plain string, which has nowhere to put pixels. The model
+only learns that a picture exists.
+
+Making it actually visible is a change on each side, and yours to make:
+
+- `direct`: widen `ChatTurn`'s `content` from a string to an array of content blocks and put the
+  image in whichever shape your endpoint expects (Anthropic's `image` block, an OpenAI-compatible
+  `image_url`, and so on). Whether it works at all depends on the model you point this at.
+- `-p`: the CLI has no channel for an image. The workable route is to write the picture to a
+  temporary file, put that path in the prompt, and allow `Read` via `CLAUDE_P_ALLOWED_TOOLS` so it
+  can open the file. **That grants the CLI file-read access** — and not only to the picture you
+  wrote. Weigh it yourself, and delete the file afterwards.
+
+It is left undone by default because either path depends on your endpoint's exact format or widens a
+permission, and neither is this repository's decision to make for you.
