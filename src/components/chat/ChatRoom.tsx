@@ -81,6 +81,7 @@ import {
   LinkCard,
   type CostStats,
 } from "./arcvs/parts";
+import { useFixedViewport } from "./arcvs/viewport";
 import {
   BackChevron,
   FourPointStar,
@@ -352,6 +353,10 @@ export function ChatRoom() {
   const [llmSettings, setLlmSettings] = useState<LLMSettings | null>(null);
   const [pCap, setPCap] = useState<PCapability | null>(null);
   const [codexCap, setCodexCap] = useState<PCapability | null>(null);
+
+  // The chat is a fixed full-screen shell — keep the document from scrolling or
+  // rubber-banding under it.
+  useFixedViewport();
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [providerTick, setProviderTick] = useState(0); // re-read the choice after a pick
   useEffect(() => {
@@ -381,6 +386,7 @@ export function ChatRoom() {
   const [spendToday, setSpendToday] = useState<number | null>(null);
   const [contextMax, setContextMax] = useState(200_000);
   const [fontScale, setFontScale] = useState(1);
+
 
   useEffect(() => {
     if (!showDrawer) return;
