@@ -2,14 +2,16 @@
 // Strategy:
 //   - /api/auth/* + /api/chat/* + /api/auth/recovery: network only (auth/SSE 不能 cache)
 //   - /api/*: network-first, fall back to cache (read API 离线显示上次)
-//   - /_next/static, /icon-*, /apple-touch-icon, /images, /fonts: cache-first
-//     (immutable assets, 跨 deploy 用 hash 自动 invalidate)
+//   - /_next/static, /fonts: cache-first (genuinely immutable — hashed names)
+//   - /images and other pictures: stale-while-revalidate. Their paths carry no
+//     hash, so editing a file leaves its URL unchanged; cache-first would mean
+//     an installed PWA never sees the new version.
 //   - everything else: stale-while-revalidate (page HTML 离线显示, 同时后台
 //     刷新)
 //
 // Cache 名带版本, 升级 SW 时旧 cache 自动 unregister + 清掉.
 
-const VERSION = "v57-2026-07-14"; // bump per release so activate cleanup reclaims old runtime caches
+const VERSION = "v58-2026-07-30"; // pictures moved to SWR; this bump also drops the letterboxed backgrounds from the old runtime cache
 
 const APP_SHELL_CACHE = `kimi-shell-${VERSION}`;
 const RUNTIME_CACHE = `kimi-runtime-${VERSION}`;
@@ -116,14 +118,27 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // immutable assets cache-first
+  // Genuinely immutable: the filename carries a content hash, so a change to
+  // the bytes changes the URL. Safe to serve from cache forever.
   if (
     url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/images/") ||
     url.pathname.startsWith("/fonts/") ||
-    /\.(png|jpg|jpeg|gif|svg|webp|woff2?|ttf|otf|ico)$/i.test(url.pathname)
+    /\.(woff2?|ttf|otf)$/i.test(url.pathname)
   ) {
     event.respondWith(cacheFirst(req, RUNTIME_CACHE));
+    return;
+  }
+
+  // Pictures are not immutable — /images paths have no hash, so replacing a
+  // file leaves its URL alone. Cache-first would pin an installed PWA to the old
+  // bytes indefinitely: editing a background image would simply never arrive.
+  // Stale-while-revalidate keeps the instant paint and picks up the new file on
+  // the following load.
+  if (
+    url.pathname.startsWith("/images/") ||
+    /\.(png|jpg|jpeg|gif|svg|webp|ico)$/i.test(url.pathname)
+  ) {
+    event.respondWith(staleWhileRevalidate(req, RUNTIME_CACHE));
     return;
   }
 
