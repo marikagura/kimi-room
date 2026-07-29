@@ -2794,7 +2794,9 @@ function MessageItem({
             alignItems: "start",
           }}
         >
-          {pair(bodyBefore, false)}
+          {/* 工具与沉吟也带头像 —— 一轮从这里开头, 头像标的是「这一段是谁的」。
+              只有最后那格 (记号 + 钱) 不带: 它是注脚, 不是谁说的一段。 */}
+          {pair(bodyBefore, true)}
           {/* One row per paragraph, each with its own portrait — a messenger
               shows a run of short messages that way, not sharing one. */}
           {bubbleNodes.map((node, i) => (
