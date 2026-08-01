@@ -185,9 +185,13 @@ ChatProvider.send(turns, opts) → 流式增量
   └─ -p       浏览器 → 本部署的 /api/p → 本机的 claude CLI
 ```
 
-kimi-core 的记忆检索（RAG）与这两条正交：它只往 prompt 里补检索到的记忆，两个后端都能叠。
-
 界面不区分二者。模型切换器里选哪个档案，就等于选哪条后端。
+
+**上下文各拿各的。** direct 那条什么都得自己带，所以接了 kimi-core 的部署可以让它
+带上记忆引擎的分层上下文——时间、常驻上下文（冷启动一次）、这一轮的检索——走
+`/api/core` 那道已有的信任边界，开关是 `NEXT_PUBLIC_KIMI_CORE_CONTEXT`，细节见
+[docs/BACKENDS.md](docs/BACKENDS.md)。`-p` 那条不注入：它在部署者自己的 harness 里
+生成，那台机器带着它自己的 CLAUDE.md 与 MCP，再塞一份进去等于同一批材料付两次钱。
 
 ### -p 模式
 
@@ -203,6 +207,7 @@ CLAUDE_P_BIN=claude              # CLI 不在 PATH 上时填路径（只认 Clau
 CLAUDE_P_CWD=/home/you           # 工作目录，默认用户主目录
 CLAUDE_P_PERMISSION_MODE=default # default | acceptEdits | bypassPermissions | plan
 CLAUDE_P_ALLOWED_TOOLS=          # 留空 = 只出文字
+CLAUDE_P_BILLING=plan            # plan（默认）| api，这一轮花的到底是什么
 ```
 
 没设 `CLAUDE_P_ENABLED`、或机器上找不到 CLI，模型切换器里**不出现**这个选项——不是灰掉，是没有。
@@ -210,6 +215,26 @@ CLAUDE_P_ALLOWED_TOOLS=          # 留空 = 只出文字
 多轮：首轮响应里的 `session_id` 存在这个 thread 上，之后带 `--resume` 续。room 的一个 thread
 对应一个 CLI session；分叉出的新支不继承父支的 session，回拨会丢掉 session 句柄，
 让下一次发送与屏幕上看到的内容对得上。
+
+每条回复底下报这一轮的读数：
+
+```
+CTX 43305 · IN 2 · OUT 3 · PLAN
+续 d1576fff
+```
+
+- `CTX` 是这一轮真正带了多少上下文，`input + cache_read + cache_creation` 三段之和。
+  只读 `IN` 会看到 2 这种数字——那是没被缓存的那一点点，真话，但读起来像上下文空了。
+- `续 / 新 + session id 前八位`。`--resume` 是请求不是保证：CLI 找不到那条 session 时
+  会开一条新的，唯一的迹象就是回来的 id 变了。所以「续」是既请求了又被接受，别的都算新开
+  ——那意味着那边不记得之前说过什么，值得当场知道，所以它是这一行里唯一上警示色的东西。
+- 账那一格：`CLAUDE_P_BILLING=plan`（默认）时显示 `PLAN`。CLI 照样会报一个美元数，
+  但订阅额度下那是这一轮的 API 折算价，不是钱在动——鼠标停上去能看到它。设成 `api`
+  就显示真金白银，因为那时候它就是。
+
+`codex` 那条同理（`CODEX_BILLING`），只是它自己的记账方式不同：那边的 input 数已经把
+缓存那部分算在里面，所以 `CTX` 就是它报的 input，不再相加。每条路自己说自己的总数，
+不把这道算术留给浏览器猜。
 
 模型：七个钉死的 id 直传 `--model`——`claude-opus-5` / `-4-8` / `-4-7` / `-4-6`、
 `claude-sonnet-5` / `-4-5`、`claude-fable-5`。用具体版本而不是 `opus` 这类浮动别名，
@@ -230,6 +255,9 @@ CLAUDE_P_ALLOWED_TOOLS=          # 留空 = 只出文字
 页首常驻一行三件：缓存命中率（`MEMORIA`）、上下文已用/上限（`CONTEXTVS`）、今日花费（`IMPENSA`）。
 缓存与价格只有在后端报了才显示——`-p` 会报，裸 API 端点多数不报，读不到就不显示这一格，不拿 0 充数。
 上下文量表过 85% 转琥珀、过 95% 转红。
+
+`IMPENSA` 只累计真出账的那些。走订阅额度的轮次照样报一个折算价，把它加进今日花费
+等于凭空造出一笔没花的钱。
 
 这一格是**表，不是闸**：房间把这个 thread 的消息整份发出去，不裁不合并，量表满了也照发，
 真正的上限由上游端点自己划。`128K / 200K / 1M` 三档只是量表的分母，换它不改变发出去多少。

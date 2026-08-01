@@ -53,6 +53,7 @@ import {
 import { buildSystemMessage, getSystemContextStats } from "@/lib/system-prompt";
 import { readCoreChat, writeCoreChat, readCoreThreads, deleteCoreChat } from "@/lib/kimi-core-client";
 import { isCoreBackend } from "@/lib/backend-mode";
+import { buildCoreContext, coreContextMode } from "@/lib/core-context";
 import {
   chatImageUrl,
   detectLink,
@@ -72,7 +73,7 @@ import {
   type Palette,
 } from "./arcvs/tokens";
 import {
-  ToolLine,
+  Actus,
   ActionMarks,
   Avatar,
   Cogitatio,
@@ -120,7 +121,39 @@ type SwipeVariant = {
   cost?: Usage;
   coreId?: string;
   tools?: ToolEvent[];
+  session?: CliSession;
 };
+
+/**
+ * Which CLI session answered a turn, on the backends that run one.
+ *
+ * A CLI keeps the transcript on its own machine — the room hands it an id and
+ * gets text back, and nothing in between says whether the conversation was
+ * continued or begun again. So the answer is carried per reply: `resumed` for
+ * what happened, `sid` (the head of the session id) for which line it happened
+ * on. An unchanged sid across replies is the same conversation; a new one is the
+ * other side having started over.
+ */
+type CliSession = { resumed: boolean; sid: string };
+
+/**
+ * How much context one turn carried.
+ *
+ * The backend states it (`ctxTok`) when it knows, because the arithmetic is its
+ * own: one vendor counts fresh and cached input in separate fields to be added,
+ * another folds the cached part into the total already. Where nothing is stated
+ * the fields are summed — right for an endpoint that reports cache separately,
+ * and harmless for the many that report no cache at all.
+ *
+ * Reading only the fresh input field instead would show a long conversation as
+ * near-empty from its second turn on, since by then almost all of it is being
+ * served from cache.
+ */
+function contextTokens(u?: Usage): number {
+  if (!u) return 0;
+  if (typeof u.ctxTok === "number") return u.ctxTok;
+  return u.inTok + (u.cacheReadTok ?? 0) + (u.cacheCreateTok ?? 0);
+}
 
 type ChatMessage = {
   id: string;
@@ -130,6 +163,7 @@ type ChatMessage = {
   thinkingSec?: number;
   tools?: ToolEvent[];
   cost?: Usage;
+  session?: CliSession;
   ts: string;
   coreId?: string;
   swipes?: SwipeVariant[];
@@ -184,6 +218,7 @@ function mergeCoreRows(
       ...(prior?.thinking ? { thinking: prior.thinking, thinkingSec: prior.thinkingSec } : {}),
       ...(prior?.tools ? { tools: prior.tools } : {}),
       ...(prior?.cost ? { cost: prior.cost } : {}),
+      ...(prior?.session ? { session: prior.session } : {}),
       ...(prior?.image ? { image: prior.image } : {}),
       ...(prior?.link ? { link: prior.link } : {}),
       ...(prior?.swipes ? { swipes: prior.swipes, swipeIndex: prior.swipeIndex } : {}),
@@ -231,7 +266,7 @@ const BASE_FS = 12;
 // ============================================
 
 const BG_OPTIONS = [
-  { id: "none", label: "无", url: null },
+  { id: "none", label: "none", url: null },
   { id: "paris", label: "paris", url: "/images/mood/paris.jpg" },
   { id: "vienna", label: "vienna", url: "/images/mood/vienna.jpg" },
   { id: "ribbon", label: "ribbon", url: "/images/mood/ribbon.jpg" },
@@ -293,6 +328,11 @@ function turnText(m: { content: string; image?: ChatImage; link?: LinkPreview })
   }
   if (!m.content && m.image) return "(图片)";
   return m.content;
+}
+
+/** The head of a session id — enough to tell one line from another at a glance. */
+function sidHead(sessionId: string): string {
+  return sessionId.slice(0, 8);
 }
 
 function todayKey(): string {
@@ -669,20 +709,46 @@ export function ChatRoom() {
     [pCap, codexCap, llmSettings, providerTick],
   );
 
-  // Cost bar. Cache share and price only exist when the backend reports them —
-  // the -p backend does, a raw API endpoint mostly does not, and an absent
-  // reading is left out of the bar rather than faked as zero.
+  // Cost bar. Price only exists when the backend reports it — the -p backend
+  // does, a raw API endpoint mostly does not, and an absent reading is left out
+  // of the bar rather than faked as zero. Cache share rides with the price on
+  // each reply instead, since it is a per-turn reading, not a session one.
+  // The opened face wants the same readings at a different grain — the last turn
+  // split apart, and every turn added up — so both are computed here once rather
+  // than walking the messages again inside the bar.
   const costStats: CostStats = useMemo(() => {
-    const lastCost = [...session.msgs].reverse().find((m) => m.cost)?.cost;
-    const cacheRead = lastCost?.cacheReadTok ?? 0;
-    const cacheCreate = lastCost?.cacheCreateTok ?? 0;
-    const fresh = lastCost?.inTok ?? 0;
-    const totalIn = cacheRead + cacheCreate + fresh;
+    const costs = session.msgs.map((m) => m.cost).filter((c): c is Usage => !!c);
+    const lastCost = costs.length ? costs[costs.length - 1] : undefined;
+    const totalIn = contextTokens(lastCost);
+    const split = (u: Usage) => ({
+      cacheRead: u.cacheReadTok ?? 0,
+      cacheWrite: u.cacheCreateTok ?? 0,
+      // `inTok` is the uncached remainder on every backend this talks to; the
+      // cached parts are reported in their own fields.
+      fresh: u.inTok,
+      output: u.outTok,
+    });
     return {
-      cacheHit: cacheRead > 0 && totalIn > 0 ? cacheRead / totalIn : null,
       contextUsed: totalIn + (lastCost?.outTok ?? 0),
       contextMax,
       spendToday,
+      lastTurn: lastCost ? split(lastCost) : null,
+      thread: costs.length
+        ? costs.reduce(
+            (a, c) => {
+              const s = split(c);
+              return {
+                cacheRead: a.cacheRead + s.cacheRead,
+                cacheWrite: a.cacheWrite + s.cacheWrite,
+                fresh: a.fresh + s.fresh,
+                output: a.output + s.output,
+                turns: a.turns + 1,
+                planTurns: a.planTurns + (c.plan ? 1 : 0),
+              };
+            },
+            { cacheRead: 0, cacheWrite: 0, fresh: 0, output: 0, turns: 0, planTurns: 0 },
+          )
+        : null,
     };
   }, [session.msgs, contextMax, spendToday]);
 
@@ -754,8 +820,22 @@ export function ChatRoom() {
         .filter((m) => m.content.trim() || m.image || m.link)
         .map((m) => ({ role: m.role, content: turnText(m) }));
 
+      // kimi-core's layers ride with the turn on the direct backend only. A CLI
+      // backend answers inside the operator's own harness, which already brings
+      // whatever context that machine is configured with — sending a second copy
+      // through the system prompt would pay for the same material twice and let
+      // two versions of it disagree in one window.
+      const core =
+        provider.kind === "direct"
+          ? await buildCoreContext({
+              query: turns[turns.length - 1]?.content ?? "",
+              threadId: threadId ?? sessionRef.current.sessionId,
+            })
+          : null;
+      const system = [sys.text, core?.text].filter(Boolean).join("\n\n");
+
       const r = await provider.send(turns, {
-        system: sys.text || undefined,
+        system: system || undefined,
         signal: ac.signal,
         resumeId:
           (provider.kind === "p" || provider.kind === "codex") &&
@@ -770,6 +850,10 @@ export function ChatRoom() {
             const sid = e.sessionId;
             const k = provider.kind;
             if (k === "p" || k === "codex") {
+              // Shown from the moment it is known rather than at the end: which
+              // session answered is most worth seeing while the reply is still
+              // arriving, not after.
+              patchReply(replyId, { session: { resumed: e.resumed, sid: sidHead(sid) } });
               setSession((s) =>
                 s.cliSessions?.[k] === sid
                   ? s
@@ -795,8 +879,14 @@ export function ChatRoom() {
         thinkingSec,
         cost: r.usage,
         tools: r.tools ?? (toolMap.size ? [...toolMap.values()] : undefined),
+        ...(r.sessionId && r.resumed !== undefined
+          ? { session: { resumed: r.resumed, sid: sidHead(r.sessionId) } }
+          : {}),
       });
-      if (r.usage?.costUsd) addSpend(r.usage.costUsd);
+      // A plan turn reports a price too, but it is what the turn would have cost
+      // on a metered key — no money moved. Adding it to today's total would
+      // invent spending, so IMPENSA counts only what is actually billed.
+      if (r.usage?.costUsd && !r.usage.plan) addSpend(r.usage.costUsd);
       if (r.sessionId && (provider.kind === "p" || provider.kind === "codex")) {
         const sid = r.sessionId;
         const k = provider.kind;
@@ -978,6 +1068,7 @@ export function ChatRoom() {
               cost: cur.cost,
               coreId: cur.coreId,
               tools: cur.tools,
+              session: cur.session,
             },
           ]
         : []);
@@ -1002,6 +1093,7 @@ export function ChatRoom() {
           cost: undefined,
           tools: undefined,
           coreId: undefined,
+          session: undefined,
           swipes,
           swipeIndex,
         },
@@ -1040,6 +1132,7 @@ export function ChatRoom() {
               cost: v.cost,
               tools: v.tools,
               coreId: v.coreId,
+              session: v.session,
               swipeIndex: next,
             }
           : x,
@@ -1543,7 +1636,7 @@ export function ChatRoom() {
         )}
 
         {session.msgs.length === 0 && !busy ? (
-          <EmptyRose message="今天还没说话 · 写一句" palette="gothic" />
+          <EmptyRose message="" palette="gothic" />
         ) : (
           session.msgs.map((m, i) => {
             const prev = session.msgs[i - 1];
@@ -1737,7 +1830,7 @@ export function ChatRoom() {
                   void send();
                 }
               }}
-              placeholder="写一句…"
+              placeholder=""
               rows={1}
               style={{
                 flex: 1,
@@ -1750,7 +1843,7 @@ export function ChatRoom() {
                 resize: "none",
                 overflowY: "auto",
                 fontFamily: FONT_CN,
-                fontSize: 12,
+                fontSize: "var(--kimi-chat-fs, 12px)",
                 lineHeight: 1.7,
                 padding: 0,
                 margin: 0,
@@ -2113,6 +2206,7 @@ function SettingsDrawer({
   /** A generation backend exists, so closeout can actually summarize. */
   closeoutReady: boolean;
 }) {
+  const coreCtx = coreContextMode();
   const heading = {
     fontSize: 9,
     letterSpacing: 2,
@@ -2160,10 +2254,10 @@ function SettingsDrawer({
       {/* avatars — the third reading of the same screen */}
       <div style={heading}>avatars</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <button type="button" onClick={() => onAvatars(false)} style={chip(!avatarsOn)}>
+        <button type="button" onClick={() => onAvatars(false)} style={{ ...chip(!avatarsOn), fontFamily: FONT_CN }}>
           无头像
         </button>
-        <button type="button" onClick={() => onAvatars(true)} style={chip(avatarsOn)}>
+        <button type="button" onClick={() => onAvatars(true)} style={{ ...chip(avatarsOn), fontFamily: FONT_CN }}>
           带头像
         </button>
       </div>
@@ -2263,10 +2357,10 @@ function SettingsDrawer({
       </div>
       {bgId !== "none" && (
         <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-          <button type="button" onClick={() => onBgFit("adapt")} style={chip(bgFit === "adapt")}>
+          <button type="button" onClick={() => onBgFit("adapt")} style={{ ...chip(bgFit === "adapt"), fontFamily: FONT_CN }}>
             整幅
           </button>
-          <button type="button" onClick={() => onBgFit("fill")} style={chip(bgFit === "fill")}>
+          <button type="button" onClick={() => onBgFit("fill")} style={{ ...chip(bgFit === "fill"), fontFamily: FONT_CN }}>
             铺满
           </button>
         </div>
@@ -2339,6 +2433,26 @@ function SettingsDrawer({
           <span style={{ color: p.inkMute }}>…</span>
         )}
       </Link>
+
+      {/* What kimi-core adds to a turn, when a deployment has one. A build-time
+          setting, so it is stated rather than measured — and stated at all
+          because "the model knew that" and "the model was told that" are
+          different things and only this line tells them apart. */}
+      {coreCtx !== "off" && (
+        <div
+          style={{
+            marginTop: -6,
+            marginBottom: 10,
+            fontSize: 9,
+            lineHeight: 1.6,
+            letterSpacing: 1,
+            color: p.inkMute,
+            fontFamily: FONT_LATIN,
+          }}
+        >
+          kimi-core {coreCtx === "full" ? "冷启动 + 每轮检索" : "每轮检索"} · 仅 API 路
+        </div>
+      )}
 
       {/* Two doors on one row, one job each: closeout summarizes into memory
           and then opens a fresh window; 新窗口 only opens the window. Without a
@@ -2552,9 +2666,7 @@ function MessageItem({
               maxWidth: "100%",
               background: mine ? p.bubbleMe : p.bubbleThem,
               border: `1px solid ${mine ? p.bubbleMeBorder : p.bubbleThemBorder}`,
-              // The pointed corner stays on the first piece only — it points at
-              // who is speaking, and one utterance points once.
-              borderRadius: avatarsOn && first ? (mine ? "10px 3px 10px 10px" : "3px 10px 10px 10px") : 10,
+              borderRadius: 10,
               padding: "9px 14px",
               boxShadow:
                 p.theme === "day"
@@ -2581,7 +2693,7 @@ function MessageItem({
                   height: 10,
                   borderLeft: `1px solid ${mine ? p.bubbleMeCorner : p.bubbleThemCorner}`,
                   borderTop: `1px solid ${mine ? p.bubbleMeCorner : p.bubbleThemCorner}`,
-                  borderTopLeftRadius: avatarsOn && !mine ? 3 : 10,
+                  borderTopLeftRadius: 10,
                 }}
               />
             )}
@@ -2672,7 +2784,7 @@ function MessageItem({
     beforeNodes.push(
       <div key="tools" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 4 }}>
         {msg.tools.map((t) => (
-          <ToolLine key={t.id} p={p} tool={t} />
+          <Actus key={t.id} p={p} tool={t} />
         ))}
       </div>,
     );
@@ -2737,6 +2849,16 @@ function MessageItem({
   }
 
   if (msg.cost) {
+    const ctx = contextTokens(msg.cost);
+    // CTX before IN because it is the reading one actually wants: how much of
+    // the conversation this turn carried. IN is only the part that was not
+    // already cached, which on a long thread is a handful of tokens — true, and
+    // by itself it looks like the context is gone.
+    // Share of that context served from cache. Measured against `ctx` rather
+    // than a sum computed here, so it stays right on a backend whose input count
+    // already contains its cached part — re-adding it there would count the same
+    // tokens twice and quietly understate the hit rate.
+    const hit = ctx > 0 ? (msg.cost.cacheReadTok ?? 0) / ctx : null;
     afterNodes.push(
       <span
         key="cost"
@@ -2746,10 +2868,54 @@ function MessageItem({
           letterSpacing: 1.5,
           color: p.inkMute,
           fontFamily: FONT_LATIN,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
         }}
+        title={
+          msg.cost.plan && msg.cost.costUsd != null
+            ? `按 API 价折算 ≈ $${msg.cost.costUsd.toFixed(4)}`
+            : undefined
+        }
       >
-        IN {msg.cost.inTok} · OUT {msg.cost.outTok}
-        {msg.cost.costUsd != null ? ` · $${msg.cost.costUsd.toFixed(4)}` : ""}
+        <span>
+          {ctx > 0 ? `CTX ${ctx} · ` : ""}IN {msg.cost.inTok} · OUT {msg.cost.outTok}
+          {msg.cost.plan
+            ? " · PLAN"
+            : msg.cost.costUsd != null
+              ? ` · $${msg.cost.costUsd.toFixed(4)}`
+              : ""}
+        </span>
+        {hit != null && (
+          <>
+            <span style={{ display: "inline-flex", width: 7, height: 7 }}>
+              <RingGauge color={p.gold} track={p.ruleSoft} frac={hit} size={7} width={1.4} />
+            </span>
+            <span style={{ color: p.goldDim }}>{Math.round(hit * 100)}%</span>
+          </>
+        )}
+      </span>,
+    );
+  }
+
+  // Which session answered, on the backends that keep one. The head of the id
+  // stays put for as long as the conversation does; a new one means the CLI
+  // started over and no longer has what was said before it — colour carries
+  // that (warn = freshly opened), not a word next to the id.
+  if (msg.session) {
+    afterNodes.push(
+      <span
+        key="session"
+        style={{
+          ...ONUM,
+          fontSize: 8,
+          letterSpacing: 1.5,
+          fontFamily: FONT_LATIN,
+          color: msg.session.resumed ? p.inkMute : p.warn,
+        }}
+        title={msg.session.resumed ? "同一条 CLI session" : "这一轮开了新的 CLI session"}
+      >
+        {msg.session.sid}
       </span>,
     );
   }

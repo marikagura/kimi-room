@@ -312,7 +312,12 @@ export type ChatOptions = {
 export type ChatResult = {
   text: string;
   thinking?: string;
-  usage?: { inTok: number; outTok: number };
+  // Anthropic reports the cached part of the prompt in its own fields, which the
+  // context reading has to add back: `input_tokens` there is only what was NOT
+  // served from cache, so a long conversation reads as a few dozen tokens from
+  // its second turn on. OpenAI-compatible endpoints fold the cached part into
+  // prompt_tokens already, so they leave these undefined and the total stands.
+  usage?: { inTok: number; outTok: number; cacheReadTok?: number; cacheCreateTok?: number };
   raw?: unknown;
 };
 
@@ -383,7 +388,12 @@ async function chatOnce(
     if (!res.ok) await throwHttpError(res, "LLM request failed");
     const data = (await res.json()) as {
       content?: { type?: string; text?: string; thinking?: string }[];
-      usage?: { input_tokens?: number; output_tokens?: number };
+      usage?: {
+        input_tokens?: number;
+        output_tokens?: number;
+        cache_read_input_tokens?: number;
+        cache_creation_input_tokens?: number;
+      };
     };
     const text = (data.content ?? [])
       .filter((b) => b.type === "text")
@@ -394,7 +404,12 @@ async function chatOnce(
       .map((b) => b.thinking ?? "")
       .join("");
     const usage = data.usage
-      ? { inTok: data.usage.input_tokens ?? 0, outTok: data.usage.output_tokens ?? 0 }
+      ? {
+          inTok: data.usage.input_tokens ?? 0,
+          outTok: data.usage.output_tokens ?? 0,
+          cacheReadTok: data.usage.cache_read_input_tokens,
+          cacheCreateTok: data.usage.cache_creation_input_tokens,
+        }
       : undefined;
     return { text, thinking: thinking || undefined, usage, raw: data };
   }
@@ -488,16 +503,26 @@ async function chatStream(
     if (!res.ok) await throwHttpError(res, "LLM stream failed");
     let inTok = 0;
     let outTok = 0;
+    let cacheReadTok = 0;
+    let cacheCreateTok = 0;
     await readSSE(res, (payload) => {
       try {
         const ev = JSON.parse(payload) as {
           type?: string;
-          message?: { usage?: { input_tokens?: number } };
+          message?: {
+            usage?: {
+              input_tokens?: number;
+              cache_read_input_tokens?: number;
+              cache_creation_input_tokens?: number;
+            };
+          };
           usage?: { output_tokens?: number };
           delta?: { type?: string; text?: string; thinking?: string };
         };
         if (ev.type === "message_start") {
           inTok = ev.message?.usage?.input_tokens ?? 0;
+          cacheReadTok = ev.message?.usage?.cache_read_input_tokens ?? 0;
+          cacheCreateTok = ev.message?.usage?.cache_creation_input_tokens ?? 0;
         } else if (ev.type === "content_block_delta") {
           if (ev.delta?.type === "text_delta" && ev.delta.text) {
             text += ev.delta.text;
@@ -511,7 +536,9 @@ async function chatStream(
         }
       } catch {}
     });
-    if (inTok || outTok) usage = { inTok, outTok };
+    if (inTok || outTok || cacheReadTok || cacheCreateTok) {
+      usage = { inTok, outTok, cacheReadTok, cacheCreateTok };
+    }
     return { text, thinking: thinking || undefined, usage };
   }
 

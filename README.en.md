@@ -199,11 +199,16 @@ ChatProvider.send(turns, opts) → streaming deltas
   └─ -p       the browser calls this deployment's /api/p, which runs the local Claude CLI
 ```
 
-kimi-core memory retrieval (RAG) is orthogonal to both: it only adds retrieved memory to the
-prompt, and either backend can be used with or without it.
-
 The interface does not distinguish the two. Picking a profile in the model switcher picks the
 backend.
+
+**Context comes from different places.** The direct route has to bring everything itself, so a
+deployment running kimi-core can have it bring the memory engine's layered context along — the
+clock, the standing context (a cold start, once), and this turn's retrieval — over the `/api/core`
+trust boundary that already exists. The switch is `NEXT_PUBLIC_KIMI_CORE_CONTEXT`; details in
+[docs/BACKENDS.en.md](docs/BACKENDS.en.md). The `-p` route gets no injection: it generates inside
+the deployer's own harness, on a machine that already carries its CLAUDE.md and its MCP servers, and
+a second copy would pay for the same material twice.
 
 ### -p mode
 
@@ -220,6 +225,7 @@ CLAUDE_P_BIN=claude              # path to the CLI, if not on PATH (Claude's onl
 CLAUDE_P_CWD=/home/you           # working directory (default: home)
 CLAUDE_P_PERMISSION_MODE=default # default | acceptEdits | bypassPermissions | plan
 CLAUDE_P_ALLOWED_TOOLS=          # empty = text only
+CLAUDE_P_BILLING=plan            # plan (default) | api — what a turn actually spends
 ```
 
 Without `CLAUDE_P_ENABLED`, or with no CLI on the machine, the option is **absent** from the model
@@ -228,6 +234,30 @@ switcher — not greyed out, not there.
 Multi-turn: the `session_id` from the first response is stored on the thread and passed as
 `--resume` afterwards. One room thread maps to one CLI session; a branch does not inherit its
 parent's session, and a rewind drops the session handle so the next send matches what is on screen.
+
+Each reply carries the turn's readings underneath it:
+
+```
+CTX 43305 · IN 2 · OUT 3 · PLAN
+续 d1576fff
+```
+
+- `CTX` is how much context the turn actually carried: `input + cache_read + cache_creation`.
+  Reading `IN` alone gives numbers like 2 — the part that was not cached, true and yet it reads as
+  though the context were empty.
+- `续 / 新` (continued / new) plus the first eight characters of the session id. `--resume` is a
+  request, not a guarantee: a session the CLI can no longer find is answered by starting a new one,
+  and the only sign of it is the id coming back different. So "continued" means both asked and
+  honoured; anything else is a fresh session — the other side no longer has what was said before,
+  which is worth knowing at once, and is the only thing on this line drawn in the warning colour.
+- The cost cell reads `PLAN` while `CLAUDE_P_BILLING=plan` (the default). The CLI still reports a
+  dollar figure, but on a subscription that is the API-equivalent of the turn rather than money
+  moving; it is on the tooltip. Set `api` and real dollars are shown, because then that is what
+  they are.
+
+`codex` works the same way (`CODEX_BILLING`), with its own accounting: there the input count
+already contains the cached part, so `CTX` is that number rather than a sum. Each route states its
+own total instead of leaving the arithmetic to the browser.
 
 Models: seven pinned ids are passed to `--model` — `claude-opus-5` / `-4-8` / `-4-7` / `-4-6`,
 `claude-sonnet-5` / `-4-5`, `claude-fable-5`. Pinned rather than floating aliases like `opus`, so
@@ -253,6 +283,9 @@ A row of three at the head of the page: cache hit rate (`MEMORIA`), context used
 (`CONTEXTVS`), and today's spend (`IMPENSA`). Cache share and price appear only when the backend
 reports them — `-p` does, most raw API endpoints do not — and a missing reading is left out rather
 than shown as zero. The context gauge turns amber past 85% and red past 95%.
+
+`IMPENSA` counts only what is actually billed. A turn on a subscription still reports a converted
+price, and adding it to today's total would invent spending that never happened.
 
 That reading is a **gauge, not a governor**: the room sends the thread's messages in full, without
 trimming or merging, and keeps sending once the gauge is full — the real ceiling is whatever the

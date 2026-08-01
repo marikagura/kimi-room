@@ -52,13 +52,24 @@ export type Usage = {
   cacheReadTok?: number;
   cacheCreateTok?: number;
   costUsd?: number;
+  /**
+   * Context carried by this turn, stated by whoever generated it.
+   *
+   * Not derived here, because the arithmetic is the backend's: Anthropic counts
+   * fresh input and cached input in separate fields that have to be added, while
+   * OpenAI's input count already contains its cached part. A backend that says
+   * nothing leaves this undefined and the bar falls back to summing what it has.
+   */
+  ctxTok?: number;
+  /** True when the turn drew on a subscription plan rather than a metered key. */
+  plan?: boolean;
 };
 
 export type ProviderEvent =
   | { type: "text"; delta: string }
   | { type: "thinking"; delta: string }
   | { type: "tool"; tool: ToolEvent }
-  | { type: "session"; sessionId: string };
+  | { type: "session"; sessionId: string; resumed: boolean };
 
 export type SendOpts = {
   system?: string;
@@ -75,6 +86,12 @@ export type SendResult = {
   tools?: ToolEvent[];
   /** -p only: the CLI session id to store on the thread for the next turn. */
   sessionId?: string;
+  /**
+   * -p only: whether the CLI continued the session it was handed, or started a
+   * fresh one. A CLI keeps the transcript on its own machine, so this is the only
+   * word the room gets on whether the other side still remembers the conversation.
+   */
+  resumed?: boolean;
 };
 
 export interface ChatProvider {
@@ -276,6 +293,7 @@ function cliProvider(cfg: {
       let thinking = "";
       let usage: Usage | undefined;
       let sessionId: string | undefined;
+      let resumed: boolean | undefined;
       let failure: string | undefined;
       const tools = new Map<string, ToolEvent>();
       const startedAt: Record<string, number> = {};
@@ -302,7 +320,8 @@ function cliProvider(cfg: {
           }
           case "session": {
             sessionId = String(ev.sessionId ?? "");
-            if (sessionId) opts.onEvent?.({ type: "session", sessionId });
+            resumed = ev.resumed === true;
+            if (sessionId) opts.onEvent?.({ type: "session", sessionId, resumed });
             break;
           }
           case "tool": {
@@ -335,18 +354,22 @@ function cliProvider(cfg: {
           }
           case "result": {
             const u = ev.usage as Usage | undefined;
+            const plan = ev.plan === true;
             if (u) {
               usage = {
                 inTok: u.inTok ?? 0,
                 outTok: u.outTok ?? 0,
                 cacheReadTok: u.cacheReadTok,
                 cacheCreateTok: u.cacheCreateTok,
+                ctxTok: u.ctxTok,
                 costUsd: typeof ev.costUsd === "number" ? ev.costUsd : undefined,
+                plan,
               };
             } else if (typeof ev.costUsd === "number") {
-              usage = { inTok: 0, outTok: 0, costUsd: ev.costUsd };
+              usage = { inTok: 0, outTok: 0, costUsd: ev.costUsd, plan };
             }
             if (typeof ev.sessionId === "string" && ev.sessionId) sessionId = ev.sessionId;
+            if (typeof ev.resumed === "boolean") resumed = ev.resumed;
             break;
           }
           case "error": {
@@ -365,6 +388,7 @@ function cliProvider(cfg: {
         thinking: thinking || undefined,
         usage,
         sessionId,
+        resumed,
         tools: tools.size ? [...tools.values()] : undefined,
       };
     },

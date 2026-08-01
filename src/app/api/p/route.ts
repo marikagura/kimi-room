@@ -19,7 +19,7 @@ export const maxDuration = 300;
 // configuration of its own; everything in the harness comes from the deployer's
 // machine. The other backend ("direct", the browser calling an OpenAI-compatible
 // or Anthropic endpoint with a key from localStorage) is untouched and stays the
-// default. See docs/ADDONS.md.
+// default. See the "-p 模式" section of README.md.
 //
 // Trust boundary — this route spends the deployer's subscription, so:
 //   1. Owner session cookie required, checked before anything else (same gate
@@ -53,11 +53,19 @@ export const maxDuration = 300;
 //   CLAUDE_P_ALLOWED_TOOLS    comma list passed to --allowedTools. Empty by
 //                             default: the reply is text only. Opening this up
 //                             lets the chat read and write real files.
+//   CLAUDE_P_BILLING          plan (default) | api. What a turn here actually
+//                             spends. A CLI signed in with `/login` draws on a
+//                             subscription plan, so the room says "订阅" instead
+//                             of a price — the CLI still reports a dollar figure
+//                             but it is the API-equivalent of the turn, not money
+//                             leaving an account. Set `api` if this machine's CLI
+//                             runs on ANTHROPIC_API_KEY, where the figure is real.
 
 const ENABLED = process.env.CLAUDE_P_ENABLED === "1";
 const BIN = process.env.CLAUDE_P_BIN || "claude";
 const CWD = process.env.CLAUDE_P_CWD || homedir();
 const ALLOWED_TOOLS = (process.env.CLAUDE_P_ALLOWED_TOOLS ?? "").trim();
+const ON_PLAN = process.env.CLAUDE_P_BILLING !== "api";
 
 /**
  * The models this deployment will run, newest first.
@@ -134,6 +142,7 @@ export async function GET(req: Request) {
     models: MODELS,
     cwd: CWD,
     tools: ALLOWED_TOOLS ? ALLOWED_TOOLS.split(",").map((t) => t.trim()).filter(Boolean) : [],
+    billing: ON_PLAN ? "plan" : "api",
   });
 }
 
@@ -159,7 +168,7 @@ export async function POST(req: Request) {
   }
   if (!ENABLED) {
     return NextResponse.json(
-      { error: "-p mode is off — set CLAUDE_P_ENABLED=1 (see docs/ADDONS.md)" },
+      { error: "-p mode is off — set CLAUDE_P_ENABLED=1 (see README.md)" },
       { status: 503 },
     );
   }
@@ -270,7 +279,7 @@ export async function POST(req: Request) {
           } catch {
             continue;
           }
-          translate(ev, push);
+          translate(ev, push, resume);
         }
       });
 
@@ -322,11 +331,21 @@ export async function POST(req: Request) {
 //   {type:"user", message:{content:[{type:"tool_result"}]}}    → tool finished
 //   {type:"result", subtype, usage, total_cost_usd}        → usage + cost
 // Anything else is ignored rather than guessed at.
-function translate(ev: Record<string, unknown>, push: (o: unknown) => void): void {
+//
+// `asked` is the session id this turn was launched with, if any. The CLI answers
+// with the id it actually ran, so the two together say whether the conversation
+// continued or started over — see `resumedOn` below.
+function translate(
+  ev: Record<string, unknown>,
+  push: (o: unknown) => void,
+  asked: string,
+): void {
   const type = ev.type;
 
   if (type === "system" && ev.subtype === "init") {
-    if (typeof ev.session_id === "string") push({ t: "session", sessionId: ev.session_id });
+    if (typeof ev.session_id === "string") {
+      push({ t: "session", sessionId: ev.session_id, resumed: resumedOn(asked, ev.session_id) });
+    }
     return;
   }
 
@@ -388,19 +407,47 @@ function translate(ev: Record<string, unknown>, push: (o: unknown) => void): voi
 
   if (type === "result") {
     const usage = ev.usage as Record<string, number> | undefined;
+    const sid = typeof ev.session_id === "string" ? ev.session_id : undefined;
     push({
       t: "result",
       subtype: typeof ev.subtype === "string" ? ev.subtype : undefined,
-      sessionId: typeof ev.session_id === "string" ? ev.session_id : undefined,
+      sessionId: sid,
+      resumed: sid ? resumedOn(asked, sid) : undefined,
       costUsd: typeof ev.total_cost_usd === "number" ? ev.total_cost_usd : undefined,
+      // What the turn spends here. On a plan the dollar figure above is the
+      // API-equivalent of the turn, not money moving, so the room labels the
+      // cell rather than printing a price it would be wrong to add up.
+      plan: ON_PLAN,
       usage: usage
         ? {
             inTok: usage.input_tokens ?? 0,
             outTok: usage.output_tokens ?? 0,
             cacheReadTok: usage.cache_read_input_tokens ?? 0,
             cacheCreateTok: usage.cache_creation_input_tokens ?? 0,
+            // How much context this turn actually carried. Anthropic counts the
+            // three input fields disjointly — input_tokens is only what was NOT
+            // served from cache — so on any turn after the first it reads like a
+            // handful of tokens while the whole conversation sits in the cache
+            // beside it. Summing them is the reading; input_tokens alone would
+            // show a full session as empty.
+            ctxTok:
+              (usage.input_tokens ?? 0) +
+              (usage.cache_read_input_tokens ?? 0) +
+              (usage.cache_creation_input_tokens ?? 0),
           }
         : undefined,
     });
   }
+}
+
+/**
+ * Whether this turn continued the conversation it was asked to continue.
+ *
+ * `--resume <id>` is a request, not a guarantee: a session the CLI can no longer
+ * find is answered by starting a new one, and the only sign of it is the id
+ * coming back different. So "resumed" means both asked and honoured — anything
+ * else is a fresh session, which is exactly what the room needs to say out loud.
+ */
+function resumedOn(asked: string, got: string): boolean {
+  return !!asked && asked === got;
 }

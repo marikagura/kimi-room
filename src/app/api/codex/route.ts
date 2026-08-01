@@ -44,6 +44,10 @@ export const maxDuration = 300;
 //                     guessed list would just be a menu of errors.
 //   CODEX_SANDBOX     read-only (default) | workspace-write | danger-full-access.
 //                     Past read-only the chat can write real files.
+//   CODEX_BILLING     plan (default) | api. What a turn here actually spends —
+//                     a CLI signed into a subscription draws on that plan, so the
+//                     room labels the cell instead of printing a price. Set `api`
+//                     if this machine's CLI runs on a metered API key.
 
 const ENABLED = process.env.CODEX_ENABLED === "1";
 const BIN = process.env.CODEX_BIN || "codex";
@@ -52,6 +56,8 @@ const MODELS = (process.env.CODEX_MODELS ?? "")
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);
+
+const ON_PLAN = process.env.CODEX_BILLING !== "api";
 
 const SANDBOXES = new Set(["read-only", "workspace-write", "danger-full-access"]);
 const SANDBOX = SANDBOXES.has(process.env.CODEX_SANDBOX ?? "")
@@ -102,6 +108,7 @@ export async function GET(req: Request) {
     cwd: CWD,
     sandbox: SANDBOX,
     streaming: false,
+    billing: ON_PLAN ? "plan" : "api",
   });
 }
 
@@ -126,11 +133,23 @@ function frame(obj: unknown): string {
  * Its items arrive whole rather than as deltas, so an agent_message is pushed as
  * one `text` frame — the client appends, which makes a single append correct.
  */
-function translate(ev: Record<string, unknown>, push: (o: unknown) => void): void {
+function translate(
+  ev: Record<string, unknown>,
+  push: (o: unknown) => void,
+  asked: string,
+): void {
   const type = ev.type;
 
   if (type === "thread.started") {
-    if (typeof ev.thread_id === "string") push({ t: "session", sessionId: ev.thread_id });
+    // `exec resume <id>` is a request: a thread the CLI cannot find is answered
+    // by starting a new one, and the returned id is the only sign of it.
+    if (typeof ev.thread_id === "string") {
+      push({
+        t: "session",
+        sessionId: ev.thread_id,
+        resumed: !!asked && asked === ev.thread_id,
+      });
+    }
     return;
   }
 
@@ -184,14 +203,25 @@ function translate(ev: Record<string, unknown>, push: (o: unknown) => void): voi
 
   if (type === "turn.completed") {
     const usage = ev.usage as Record<string, number> | undefined;
+    // Here input_tokens is already the whole prompt and cached_input_tokens is
+    // the part of it that came from cache — a subset, not a second pile. Claude's
+    // CLI reports the same idea the other way round (its input count excludes
+    // what was cached), so the two are reconciled here rather than in the
+    // browser: `ctxTok` is the whole prompt and `inTok` is what was NOT cached,
+    // which is what both readings mean everywhere else in the room. Left as the
+    // raw total, the cached figure would be counted twice in the usage panel.
+    const promptTok = usage?.input_tokens ?? 0;
+    const cachedTok = usage?.cached_input_tokens ?? 0;
     push({
       t: "result",
+      plan: ON_PLAN,
       usage: usage
         ? {
-            inTok: usage.input_tokens ?? 0,
+            inTok: Math.max(0, promptTok - cachedTok),
             outTok: usage.output_tokens ?? 0,
-            cacheReadTok: usage.cached_input_tokens ?? 0,
+            cacheReadTok: cachedTok,
             cacheCreateTok: 0,
+            ctxTok: promptTok,
           }
         : undefined,
     });
@@ -328,7 +358,7 @@ export async function POST(req: Request) {
           } catch {
             continue;
           }
-          translate(ev, push);
+          translate(ev, push, resume);
         }
       });
 

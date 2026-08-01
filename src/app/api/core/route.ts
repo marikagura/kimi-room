@@ -33,6 +33,11 @@ const ALLOWED_TOOLS = new Set([
   "chat_delete",
   "paper_list",
   "store",
+  // Cold-start context for a chat window (see lib/core-context.ts). A read of
+  // the context layers, with one side effect worth naming: kimi-core records a
+  // boot anchor for each call, which is how its own incremental reads know where
+  // a window started. Called once per conversation, not once per turn.
+  "reentry",
 ]);
 
 export async function POST(req: Request) {

@@ -47,10 +47,10 @@ kimi-room 以呈现为主，是一个自给自足的界面层。它不提供记�
 - 设 `KIMI_CORE_URL` 与 `KIMI_API_KEY`（仅服务端；浏览器不接收密钥——`/api/core`
   路由以 Bearer token 转发调用）。
 - `src/lib/kimi-core-client.ts` 暴露 `fetchCoreMemoryContext(query)`（检索）与
-  `persistCoreMemory(key, content)`。出厂的聊天界面未调用这两个函数——它们是给
-  部署者的接线点：在一轮聊天中调用，在请求部署者模型之前将检索到的记忆注入
-  prompt。出厂接好的 core 能力是 transcript 的跨设备同步（`chat_write` /
-  `chat_read` / `chat_threads` / `chat_delete`）。
+  `persistCoreMemory(key, content)`。检索由 `src/lib/core-context.ts` 接进聊天
+  （见下一节），落库仍是留给部署者的接线点。出厂接好的另一项 core 能力是
+  transcript 的跨设备同步（`chat_write` / `chat_read` / `chat_threads` /
+  `chat_delete`）。
 
 ### 需要 owner 登录
 
@@ -67,6 +67,47 @@ prompt 的人类可读文本，而非结构化记录。故 kimi-room 将 kimi-co
 dashboard（纪念、书房、睡眠等）在两种模式下默认保留在本地 IndexedDB；其可选的
 服务端持久化走参考 adapter（supabase / prisma / core），见 docs/SELF-HOST.md。
 
+### 一轮聊天带上什么上下文
+
+kimi-core 把上下文定义成层——profile、register、anchors、states、observations、
+episodes、topics、events、persona、跨 surface 合并的对话——各层独立加载，任一
+surface 只组合它需要的切片；注入分两处：新窗口开始时一次冷启动，之后每轮补该轮
+需要的。层的清单与注入方式见 kimi-core 的 `docs/CONTEXT-LAYERS.md`。
+
+房间取其中三样，拼在 system message 后面：
+
+| 层 | 来源 | 频率 |
+| --- | --- | --- |
+| 时间 | 本机时钟 + `NEXT_PUBLIC_KIMI_TZ` | 每轮一行 |
+| persona / 常驻上下文 | kimi-core 的 `reentry` | 每条对话一次，缓存 30 分钟 |
+| 记忆 | `memory_search_safe`，查询就是这一轮的消息 | 每轮 |
+
+时间那一行不是凑数：模型没有钟，不给它这一行，它答「今天」用的是权重冻结那天。
+
+开关（`.env`）：
+
+```
+NEXT_PUBLIC_KIMI_CORE_CONTEXT=rag   # off | rag（默认）| full
+NEXT_PUBLIC_KIMI_TZ=Asia/Tokyo      # 留空 = 用设备自己的时区
+```
+
+- `rag`（默认）——时间 + 每轮检索。一次查询的成本。
+- `full`——再加冷启动那一整块。它是整份常驻上下文，可以是几万字；direct 那条路
+  每轮都要重发一遍、每轮都要付一次，所以它是个选项而不是默认。
+- `off`——什么都不带。没跑 kimi-core 的部署本来就走这条，无需设置。
+
+**只作用在 direct 那条路。** CLI 那条（`-p` / `codex`）不注入：它在部署者自己的
+harness 里生成，那台机器已经带着它自己的配置，再从 system prompt 塞第二份进去，
+等于同一批材料付两次钱，还让一个窗口里出现两个版本的它。
+
+**不 import `@kimi/context-core`。** 那个包用 Prisma 直接从 Postgres 读层，import
+它就等于把数据库凭据放进一个谁都能打开的前端里。房间选择问 kimi-core，而不是绕过
+它自己去读——所以这条路走的是 `/api/core` 那道已经存在的信任边界：浏览器不持 key，
+服务端有一张写死的工具白名单，且全部是读。
+
+其中 `reentry` 有一个值得点名的副作用：kimi-core 每次调用会记一条 boot 锚点（它自己
+的增量读靠这个知道窗口从哪开始）。所以它每条对话调一次，不是每轮调一次。
+
 ---
 
 ## 一览
@@ -74,7 +115,7 @@ dashboard（纪念、书房、睡眠等）在两种模式下默认保留在本�
 |                | 本地（默认）             | core                                  |
 | -------------- | ------------------------ | ------------------------------------- |
 | dashboard      | IndexedDB（本机）        | IndexedDB（本机）                     |
-| 聊天记忆       | 本地世界书               | kimi-core（`memory_search`）          |
+| 聊天记忆       | 本地世界书               | kimi-core（`memory_search_safe`，可选加 `reentry` 冷启动）|
 | 聊天 transcript | 本地（IDB / localStorage） | kimi-core（`chat_write`/`chat_read`，跨设备合并同步） |
 | 聊天模型       | 部署者订阅 / API         | 部署者订阅 / API（相同）              |
 | 配置           | 无                       | `NEXT_PUBLIC_KIMI_BACKEND=core` + `KIMI_CORE_URL` + `KIMI_API_KEY` + `KIMI_OWNER_PASSWORD`（登录见上） |
