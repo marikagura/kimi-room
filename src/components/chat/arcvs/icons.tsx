@@ -41,8 +41,7 @@ export function MoonMark({ color, size = 13 }: IconProps) {
 export function Diamond({ color, size = 9, filled }: IconProps & { filled?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M7 1 L12.4 7 L7 13 L1.6 7 Z" stroke={color} strokeWidth="1" />
-      {filled && <circle cx="7" cy="7" r="1" fill={filled} />}
+      <path d="M7 1 L12.4 7 L7 13 L1.6 7 Z" stroke={color} strokeWidth="1" fill={filled ?? "none"} />
     </svg>
   );
 }

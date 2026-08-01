@@ -217,8 +217,6 @@ export function Cogitatio({
           />
           <span style={{ fontSize: 7, letterSpacing: 2.5, color: accent, fontFamily: FONT_LATIN }}>
             COGITATIO ·{" "}
-            {/* the gloss sits at 9px — the 6–7.5px tier is latin only */}
-            <span style={{ fontSize: 9, fontFamily: FONT_CN, letterSpacing: 1 }}>沉吟</span>{" "}
             <span style={{ ...ONUM, color: accentHi }}>{shown}″</span>
           </span>
           <span style={{ flex: 1 }} />
@@ -491,7 +489,7 @@ export function LinkCard({
                 textOverflow: "ellipsis",
               }}
             >
-              {link.site} · {link.type ?? "图文"}
+              {link.site}
             </span>
           </span>
         </span>
