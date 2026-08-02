@@ -3,10 +3,8 @@
 // Pin the document while a full-screen surface is on it.
 //
 // The chat lives entirely inside a `position: fixed` shell, so the document
-// itself has nothing to scroll. iOS allows the rubber-band anyway: one drag and
-// the fixed shell travels with the finger, exposing html/body underneath, which
-// reads as a strip along the bottom of the screen that moves when you pull. It
-// looks like a bar the page contains, and it is not.
+// itself has nothing to scroll. Mobile browsers can still rubber-band it: one
+// drag and the fixed shell travels with the finger, exposing html/body beneath.
 //
 // Both declarations are needed — `overflow: hidden` stops the scroll, and
 // `overscroll-behavior: none` stops the bounce; without the second, iOS still
@@ -40,10 +38,9 @@ export function useVisualViewport(): void {
       const editing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
       const keyboardOpen = Boolean(viewport && editing && occludedBottom > 80);
 
-      // Installed iOS PWAs may keep VisualViewport shorter than the app window
-      // after the keyboard has gone away. If that shorter height drives the
-      // fixed shell, html/body shows through as a same-colour bottom strip.
-      // Follow VisualViewport only while it represents a real keyboard.
+      // Some mobile browsers keep VisualViewport shorter after the keyboard has
+      // gone away. Follow it only while it represents a real keyboard; otherwise
+      // use the browser's layout viewport on Android, iOS and desktop alike.
       const height = keyboardOpen && viewport ? viewport.height : layoutHeight;
       const top = keyboardOpen && viewport ? viewport.offsetTop : 0;
 
