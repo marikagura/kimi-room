@@ -1997,14 +1997,14 @@ export function ChatRoom() {
                   ? "transparent"
                   : p.theme === "day"
                     ? "rgba(252,247,239,.92)"
-                    : "rgba(13,10,7,.8)",
+                    : p.bg,
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: busy || draft.trim() ? "pointer" : "default",
               position: "relative",
-              opacity: busy || draft.trim() ? 1 : 0.5,
+              opacity: busy || draft.trim() ? 1 : (sendArt?.idleOpacity ?? 0.5),
             }}
           >
             {!sendArt && (

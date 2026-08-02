@@ -33,8 +33,17 @@ export function useVisualViewport(): void {
     const sync = () => {
       const viewport = window.visualViewport;
       const layoutHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+      const ios =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+      // Some iOS standalone launches exclude the home-indicator shelf from
+      // both layout-height APIs. screen.height still covers the full app.
+      const fullHeight = ios && standalone ? Math.max(layoutHeight, window.screen.height) : layoutHeight;
       const occludedBottom = viewport
-        ? Math.max(0, layoutHeight - viewport.height - viewport.offsetTop)
+        ? Math.max(0, fullHeight - viewport.height - viewport.offsetTop)
         : 0;
       const active = document.activeElement;
       const editing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
@@ -44,7 +53,7 @@ export function useVisualViewport(): void {
       // after the keyboard has gone away. If that shorter height drives the
       // fixed shell, html/body shows through as a same-colour bottom strip.
       // Follow VisualViewport only while it represents a real keyboard.
-      const height = keyboardOpen && viewport ? viewport.height : layoutHeight;
+      const height = keyboardOpen && viewport ? viewport.height : fullHeight;
       const top = keyboardOpen && viewport ? viewport.offsetTop : 0;
 
       html.style.setProperty(VISUAL_HEIGHT, `${Math.round(height)}px`);

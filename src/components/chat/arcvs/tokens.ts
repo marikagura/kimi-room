@@ -135,10 +135,22 @@ export function paletteFor(theme: ChatTheme): Palette {
  * own ground reads better bare; art that fades at the edge needs the line to
  * stay a button.
  */
-export type SendArt = { src: string; ring?: "none" | "hairline"; inset?: number; bare?: boolean };
+export type SendArt = {
+  src: string;
+  ring?: "none" | "hairline";
+  inset?: number;
+  bare?: boolean;
+  idleOpacity?: number;
+};
 export const SEND_ART: { day?: SendArt; night?: SendArt } = {
-  night: { src: "/images/chat/send-night.png", ring: "none" },
-  day: { src: "/images/chat/send-day-bow-clean.png", ring: "none", inset: 3, bare: true },
+  night: { src: "/images/chat/send-night.png", ring: "none", idleOpacity: 1 },
+  day: {
+    src: "/images/chat/1c84dc6ea229a1c8405548ecefba1376.png",
+    ring: "none",
+    inset: 0,
+    bare: true,
+    idleOpacity: 1,
+  },
 };
 
 /** Latin small caps labels. Never used for Chinese — see FONT_CN. */
