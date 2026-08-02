@@ -1965,7 +1965,12 @@ export function ChatRoom() {
                     ? "none"
                     : `1px solid ${p.theme === "day" ? "rgba(176,64,99,.45)" : "rgba(230,205,150,.55)"}`
                   : `1px solid ${busy || draft.trim() ? p.bubbleThemCorner : p.rule}`,
-              background: p.theme === "day" ? "rgba(252,247,239,.92)" : "rgba(13,10,7,.8)",
+              background:
+                sendArt?.bare && !busy
+                  ? "transparent"
+                  : p.theme === "day"
+                    ? "rgba(252,247,239,.92)"
+                    : "rgba(13,10,7,.8)",
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
