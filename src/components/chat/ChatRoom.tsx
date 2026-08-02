@@ -1828,9 +1828,9 @@ export function ChatRoom() {
           zIndex: 3,
           flex: "none",
           borderTop: `1px solid ${p.rule}`,
-          background: bg.url && bgOpacity > 0 ? "transparent" : p.chrome,
-          backdropFilter: bg.url && bgOpacity > 0 ? "none" : "blur(20px) saturate(160%)",
-          WebkitBackdropFilter: bg.url && bgOpacity > 0 ? "none" : "blur(20px) saturate(160%)",
+          background: p.chrome,
+          backdropFilter: "blur(20px) saturate(160%)",
+          WebkitBackdropFilter: "blur(20px) saturate(160%)",
         }}
       >
         <ModelSwitcher
