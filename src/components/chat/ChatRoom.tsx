@@ -82,7 +82,7 @@ import {
   LinkCard,
   type CostStats,
 } from "./arcvs/parts";
-import { useFixedViewport } from "./arcvs/viewport";
+import { useFixedViewport, useVisualViewport } from "./arcvs/viewport";
 import {
   BackChevron,
   FourPointStar,
@@ -242,6 +242,8 @@ const SESSION_KEY = "kimi-web:chat:session";
 const THEME_KEY = "kimi-web:chat:theme";
 const BG_KEY = "kimi-web:chat:bg";
 const BG_FIT_KEY = "kimi-web:chat:bgFit";
+const BG_SLOTS_KEY = "kimi-web:chat:bgSlots:v1";
+const BG_OPACITY_KEY = "kimi-web:chat:bgOpacity";
 const AVATAR_ON_KEY = "kimi-web:chat:avatars";
 const AVATAR_SRC_KEY = "kimi-web:chat:avatarIds";
 const SPEND_KEY = "kimi-web:chat:spend";
@@ -261,20 +263,50 @@ const FONT_SCALES = [
 ] as const;
 const BASE_FS = 12;
 
-// ============================================
-// background options (从 public/images/mood)
-// ============================================
+type BackgroundSlot = {
+  imageId: string | null;
+  label: string;
+};
 
-const BG_OPTIONS = [
-  { id: "none", label: "none", url: null },
-  { id: "paris", label: "paris", url: "/images/mood/paris.jpg" },
-  { id: "vienna", label: "vienna", url: "/images/mood/vienna.jpg" },
-  { id: "ribbon", label: "ribbon", url: "/images/mood/ribbon.jpg" },
-  { id: "kintsugi", label: "kintsugi", url: "/images/mood/kintsugi-blossom.jpg" },
-  { id: "lilies", label: "lilies", url: "/images/mood/lilies-stairs.jpg" },
-  { id: "peony", label: "peony", url: "/images/mood/peony-scroll.jpg" },
-  { id: "white-rose", label: "rose", url: "/images/mood/white-rose.jpg" },
-];
+const BG_SLOT_COUNT = 6;
+const DEFAULT_BG_OPACITY = 20;
+
+function blankBackgroundSlots(): BackgroundSlot[] {
+  return Array.from({ length: BG_SLOT_COUNT }, (_, index) => ({
+    imageId: null,
+    label: `背景 ${index + 1}`,
+  }));
+}
+
+function readBackgroundSlots(raw: string | null): BackgroundSlot[] {
+  const blank = blankBackgroundSlots();
+  if (!raw) return blank;
+  try {
+    const saved = JSON.parse(raw) as unknown;
+    if (!Array.isArray(saved)) return blank;
+    return blank.map((fallback, index) => {
+      const value = saved[index];
+      if (!value || typeof value !== "object") return fallback;
+      const row = value as { imageId?: unknown; label?: unknown };
+      const label = typeof row.label === "string" ? row.label.trim().slice(0, 24) : "";
+      return {
+        imageId: typeof row.imageId === "string" && row.imageId ? row.imageId : null,
+        label: label || fallback.label,
+      };
+    });
+  } catch {
+    return blank;
+  }
+}
+
+function backgroundSlotId(index: number): string {
+  return `slot:${index}`;
+}
+
+function backgroundSlotIndex(id: string): number | null {
+  const match = /^slot:([0-5])$/.exec(id);
+  return match ? Number(match[1]) : null;
+}
 
 /** How a mood picture meets the screen. */
 type BgFit = "adapt" | "fill";
@@ -348,6 +380,8 @@ export function ChatRoom() {
   const [theme, setTheme] = useState<ChatTheme>("night");
   const [bgId, setBgId] = useState<string>("none");
   const [bgFit, setBgFit] = useState<BgFit>("adapt");
+  const [bgSlots, setBgSlots] = useState<BackgroundSlot[]>(blankBackgroundSlots);
+  const [bgOpacity, setBgOpacity] = useState(DEFAULT_BG_OPACITY);
   const [avatarsOn, setAvatarsOn] = useState(false);
   const [avatarIds, setAvatarIds] = useState<{ me?: string; them?: string }>({});
   const [avatarUrls, setAvatarUrls] = useState<{ me?: string; them?: string }>({});
@@ -376,7 +410,8 @@ export function ChatRoom() {
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
-  /** Object URL for a self-imported background; resolved from IndexedDB on load. */
+  const bgFileSlotRef = useRef(0);
+  /** Object URL for the active background slot; resolved from IndexedDB on load. */
   const [ownBgUrl, setOwnBgUrl] = useState<string | undefined>(undefined);
   const avatarSlotRef = useRef<"me" | "them">("me");
 
@@ -397,6 +432,7 @@ export function ChatRoom() {
   // The chat is a fixed full-screen shell — keep the document from scrolling or
   // rubber-banding under it.
   useFixedViewport();
+  useVisualViewport();
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [providerTick, setProviderTick] = useState(0); // re-read the choice after a pick
   useEffect(() => {
@@ -441,10 +477,26 @@ export function ChatRoom() {
       const t = localStorage.getItem(THEME_KEY);
       if (t === "day" || t === "night") setTheme(t);
       else setTheme(autoTheme());
-      const bg = localStorage.getItem(BG_KEY);
-      if (bg) setBgId(bg);
+      const slots = readBackgroundSlots(localStorage.getItem(BG_SLOTS_KEY));
+      const savedBg = localStorage.getItem(BG_KEY) ?? "none";
+      let nextBg = "none";
+      const savedSlot = backgroundSlotIndex(savedBg);
+      if (savedSlot !== null && slots[savedSlot]?.imageId) {
+        nextBg = savedBg;
+      } else if (savedBg.startsWith("own:") && savedBg.length > 4 && !slots.some((slot) => slot.imageId)) {
+        // Migrate the old single custom background into the first fixed slot.
+        slots[0] = { ...slots[0], imageId: savedBg.slice(4) };
+        nextBg = backgroundSlotId(0);
+        localStorage.setItem(BG_SLOTS_KEY, JSON.stringify(slots));
+      }
+      setBgSlots(slots);
+      setBgId(nextBg);
+      if (savedBg !== nextBg) localStorage.setItem(BG_KEY, nextBg);
       const fit = localStorage.getItem(BG_FIT_KEY);
       if (fit === "adapt" || fit === "fill") setBgFit(fit);
+      const savedOpacity = localStorage.getItem(BG_OPACITY_KEY);
+      const opacity = savedOpacity === null ? Number.NaN : Number(savedOpacity);
+      if (Number.isFinite(opacity) && opacity >= 0 && opacity <= 100) setBgOpacity(opacity);
       setAvatarsOn(localStorage.getItem(AVATAR_ON_KEY) === "1");
       const cm = Number(localStorage.getItem(CONTEXT_MAX_KEY));
       if (cm > 0) setContextMax(cm);
@@ -609,6 +661,14 @@ export function ChatRoom() {
     },
     [store],
   );
+  const applyBgOpacity = useCallback(
+    (value: number) => {
+      const next = Math.max(0, Math.min(100, Math.round(value)));
+      setBgOpacity(next);
+      store(BG_OPACITY_KEY, String(next));
+    },
+    [store],
+  );
   const applyAvatarsOn = useCallback(
     (v: boolean) => {
       setAvatarsOn(v);
@@ -681,26 +741,28 @@ export function ChatRoom() {
   }, [busy]);
 
   const p = paletteFor(theme);
-  // "own:<id>" is a picture the owner imported; the rest are the shipped set.
-  const bg = useMemo(() => {
-    if (bgId.startsWith("own:")) return { id: bgId, label: "自选", url: ownBgUrl ?? null };
-    return BG_OPTIONS.find((b) => b.id === bgId) ?? BG_OPTIONS[0];
-  }, [bgId, ownBgUrl]);
+  const activeBgSlotIndex = backgroundSlotIndex(bgId);
+  const activeBgSlot = activeBgSlotIndex === null ? undefined : bgSlots[activeBgSlotIndex];
+  const activeBgImageId = activeBgSlot?.imageId ?? null;
+  const bg = useMemo(
+    () => ({ id: bgId, label: activeBgSlot?.label ?? "无背景", url: ownBgUrl ?? null }),
+    [activeBgSlot?.label, bgId, ownBgUrl],
+  );
 
-  // The stored id survives reloads; the blob URL does not, so it is remade.
+  // The IndexedDB id survives reloads; the blob URL does not, so it is remade.
   useEffect(() => {
-    if (!bgId.startsWith("own:")) {
+    if (!activeBgImageId) {
       setOwnBgUrl(undefined);
       return;
     }
     let alive = true;
-    void chatImageUrl(bgId.slice(4)).then((u) => {
+    void chatImageUrl(activeBgImageId).then((u) => {
       if (alive) setOwnBgUrl(u ?? undefined);
     });
     return () => {
       alive = false;
     };
-  }, [bgId]);
+  }, [activeBgImageId]);
   const sendArt = SEND_ART[theme];
   const provider = useMemo(
     () => resolveProvider(pCap, codexCap),
@@ -1011,16 +1073,37 @@ export function ChatRoom() {
     }
   }
 
-  /** Import a picture of one's own as the background. Stored like any chat
-   *  image — downscaled into IndexedDB, never uploaded. */
-  async function pickBackground(file: File) {
+  /** Import a picture into a fixed background slot. It is downscaled into
+   *  IndexedDB like a chat image and never uploaded. */
+  async function pickBackground(file: File, slotIndex: number) {
     if (!file.type.startsWith("image/")) return;
     try {
       const img = await putChatImage(file);
-      applyBg(`own:${img.id}`);
+      setBgSlots((current) => {
+        const next = current.map((slot, index) =>
+          index === slotIndex ? { ...slot, imageId: img.id } : slot,
+        );
+        store(BG_SLOTS_KEY, JSON.stringify(next));
+        return next;
+      });
+      setOwnBgUrl(img.url);
+      applyBg(backgroundSlotId(slotIndex));
     } catch {
       flash("背景没存上");
     }
+  }
+
+  function renameBackground(slotIndex: number) {
+    const slot = bgSlots[slotIndex];
+    if (!slot?.imageId) return;
+    const value = window.prompt("给这张背景改名", slot.label);
+    const label = value?.trim().slice(0, 24);
+    if (!label || label === slot.label) return;
+    setBgSlots((current) => {
+      const next = current.map((item, index) => (index === slotIndex ? { ...item, label } : item));
+      store(BG_SLOTS_KEY, JSON.stringify(next));
+      return next;
+    });
   }
 
   async function pickAvatar(file: File) {
@@ -1350,7 +1433,11 @@ export function ChatRoom() {
       style={
         {
           position: "fixed",
-          inset: 0,
+          top: "var(--kimi-visual-top, 0px)",
+          left: 0,
+          right: 0,
+          bottom: "auto",
+          height: "var(--kimi-visual-height, 100dvh)",
           background: p.bg,
           color: p.ink,
           fontFamily: FONT_LATIN,
@@ -1376,7 +1463,7 @@ export function ChatRoom() {
           position: "absolute",
           inset: 0,
           background: p.glow,
-          opacity: bg.url ? 0.35 : 1,
+          opacity: bg.url && bgOpacity > 0 ? 0.35 : 1,
           zIndex: 0,
           pointerEvents: "none",
         }}
@@ -1396,7 +1483,7 @@ export function ChatRoom() {
                 backgroundPosition: "center",
                 filter: "blur(38px) saturate(120%)",
                 transform: "scale(1.12)",
-                opacity: theme === "day" ? 0.16 : 0.2,
+                opacity: Math.min((bgOpacity / 100) * 0.85, 0.55),
               }}
             />
           )}
@@ -1408,7 +1495,7 @@ export function ChatRoom() {
               backgroundSize: bgFit === "adapt" ? "contain" : "cover",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
-              opacity: theme === "day" ? 0.18 : 0.22,
+              opacity: bgOpacity / 100,
               mixBlendMode: theme === "day" ? "multiply" : "screen",
             }}
           />
@@ -1573,13 +1660,20 @@ export function ChatRoom() {
           theme={theme}
           bgId={bgId}
           bgFit={bgFit}
+          bgSlots={bgSlots}
+          bgOpacity={bgOpacity}
           avatarsOn={avatarsOn}
           avatarUrls={avatarUrls}
           contextMax={contextMax}
           sysStats={sysStats}
           onBg={applyBg}
-          onImportBg={() => bgFileRef.current?.click()}
+          onPickBgSlot={(slotIndex) => {
+            bgFileSlotRef.current = slotIndex;
+            bgFileRef.current?.click();
+          }}
+          onRenameBgSlot={renameBackground}
           onBgFit={applyBgFit}
+          onBgOpacity={applyBgOpacity}
           onAvatars={applyAvatarsOn}
           onPickAvatar={(slot) => {
             avatarSlotRef.current = slot;
@@ -1744,7 +1838,7 @@ export function ChatRoom() {
             // bottom-aligned so the two round keys stay put as the field grows
             alignItems: "flex-end",
             gap: 9,
-            padding: "6px 16px calc(env(safe-area-inset-bottom, 0px) + 12px)",
+            padding: "6px 16px var(--kimi-composer-bottom, max(calc(env(safe-area-inset-bottom, 0px) - 14px), 8px))",
           }}
         >
           {/* picture port */}
@@ -1802,7 +1896,7 @@ export function ChatRoom() {
             hidden
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) void pickBackground(f);
+              if (f) void pickBackground(f, bgFileSlotRef.current);
               e.target.value = "";
             }}
           />
@@ -2158,6 +2252,139 @@ function ModelSwitcher({
   );
 }
 
+function BackgroundSlotToggle({
+  p,
+  slot,
+  selected,
+  onSelect,
+  onUpload,
+  onRename,
+}: {
+  p: Palette;
+  slot: BackgroundSlot;
+  selected: boolean;
+  onSelect: () => void;
+  onUpload: () => void;
+  onRename: () => void;
+}) {
+  const holdTimer = useRef<number | null>(null);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const didLongPress = useRef(false);
+  const accent = p.theme === "day" ? p.roseHi : p.gold;
+  const accentHi = p.theme === "day" ? p.roseHi : p.goldHi;
+
+  const cancelHold = useCallback(() => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+    pressStart.current = null;
+  }, []);
+
+  useEffect(() => cancelHold, [cancelHold]);
+
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        display: "flex",
+        border: `1px solid ${selected ? accent : p.ruleSoft}`,
+        background: selected
+          ? p.theme === "day"
+            ? "rgba(176,64,99,.08)"
+            : "rgba(230,205,150,.08)"
+          : "transparent",
+        borderRadius: 4,
+        overflow: "hidden",
+      }}
+    >
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={slot.imageId ? `${slot.label}，长按改名` : `上传${slot.label}`}
+        title={slot.imageId ? "点按切换 · 长按改名" : "上传背景"}
+        onPointerDown={(event) => {
+          if (!slot.imageId || event.button !== 0) return;
+          didLongPress.current = false;
+          pressStart.current = { x: event.clientX, y: event.clientY };
+          holdTimer.current = window.setTimeout(() => {
+            holdTimer.current = null;
+            pressStart.current = null;
+            didLongPress.current = true;
+            onRename();
+          }, 600);
+        }}
+        onPointerMove={(event) => {
+          const start = pressStart.current;
+          if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8) cancelHold();
+        }}
+        onPointerUp={cancelHold}
+        onPointerCancel={cancelHold}
+        onPointerLeave={cancelHold}
+        onContextMenu={(event) => {
+          if (!slot.imageId) return;
+          event.preventDefault();
+          cancelHold();
+          if (!didLongPress.current) {
+            didLongPress.current = true;
+            onRename();
+            window.setTimeout(() => {
+              didLongPress.current = false;
+            }, 750);
+          }
+        }}
+        onClick={() => {
+          if (didLongPress.current) {
+            didLongPress.current = false;
+            return;
+          }
+          if (slot.imageId) onSelect();
+          else onUpload();
+        }}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: "5px 7px",
+          border: "none",
+          background: "transparent",
+          color: selected ? accentHi : p.inkSoft,
+          fontSize: 10,
+          letterSpacing: 0.8,
+          fontFamily: FONT_CN,
+          textAlign: "left",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          cursor: "pointer",
+          touchAction: "manipulation",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+      >
+        {slot.label}
+      </button>
+      <button
+        type="button"
+        onClick={onUpload}
+        aria-label={slot.imageId ? `更换${slot.label}` : `上传${slot.label}`}
+        title={slot.imageId ? "更换图片" : "上传图片"}
+        style={{
+          width: 28,
+          flex: "0 0 28px",
+          border: "none",
+          borderLeft: `1px solid ${selected ? accent : p.ruleSoft}`,
+          background: "transparent",
+          color: selected ? accentHi : p.inkMute,
+          fontSize: 12,
+          lineHeight: 1,
+          cursor: "pointer",
+          fontFamily: FONT_LATIN,
+        }}
+      >
+        {slot.imageId ? "↥" : "+"}
+      </button>
+    </div>
+  );
+}
+
 // ============================================
 // SettingsDrawer
 // ============================================
@@ -2167,13 +2394,17 @@ function SettingsDrawer({
   theme,
   bgId,
   bgFit,
+  bgSlots,
+  bgOpacity,
   avatarsOn,
   avatarUrls,
   contextMax,
   sysStats,
   onBg,
-  onImportBg,
+  onPickBgSlot,
+  onRenameBgSlot,
   onBgFit,
+  onBgOpacity,
   onAvatars,
   onPickAvatar,
   onClearAvatar,
@@ -2188,13 +2419,17 @@ function SettingsDrawer({
   theme: ChatTheme;
   bgId: string;
   bgFit: BgFit;
+  bgSlots: BackgroundSlot[];
+  bgOpacity: number;
   avatarsOn: boolean;
   avatarUrls: { me?: string; them?: string };
   contextMax: number;
   sysStats: { spChars: number; memInjectOn: boolean; memTotalActive: number } | null;
   onBg: (id: string) => void;
-  onImportBg: () => void;
+  onPickBgSlot: (slotIndex: number) => void;
+  onRenameBgSlot: (slotIndex: number) => void;
   onBgFit: (f: BgFit) => void;
+  onBgOpacity: (value: number) => void;
   onAvatars: (v: boolean) => void;
   onPickAvatar: (slot: "me" | "them") => void;
   onClearAvatar: (slot: "me" | "them") => void;
@@ -2303,67 +2538,127 @@ function SettingsDrawer({
       )}
 
       <div style={heading}>background</div>
+      <button
+        type="button"
+        onClick={() => onBg("none")}
+        style={{
+          ...chip(bgId === "none"),
+          width: "100%",
+          marginBottom: 4,
+          fontFamily: FONT_CN,
+        }}
+      >
+        无背景
+      </button>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 6 }}>
-        {BG_OPTIONS.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            onClick={() => onBg(b.id)}
-            style={{
-              padding: "5px 8px",
-              fontSize: 10,
-              letterSpacing: 1,
-              border: `1px solid ${bgId === b.id ? (p.theme === "day" ? p.roseHi : p.gold) : p.ruleSoft}`,
-              background: bgId === b.id ? (p.theme === "day" ? "rgba(176,64,99,.08)" : "rgba(230,205,150,.08)") : "transparent",
-              color: bgId === b.id ? (p.theme === "day" ? p.roseHi : p.goldHi) : p.inkSoft,
-              cursor: "pointer",
-              fontFamily: FONT_LATIN,
-              borderRadius: 4,
-              textAlign: "left",
-            }}
-          >
-            {b.label}
-          </button>
+        {bgSlots.map((slot, index) => (
+          <BackgroundSlotToggle
+            key={index}
+            p={p}
+            slot={slot}
+            selected={bgId === backgroundSlotId(index)}
+            onSelect={() => onBg(backgroundSlotId(index))}
+            onUpload={() => onPickBgSlot(index)}
+            onRename={() => onRenameBgSlot(index)}
+          />
         ))}
-        {/* Last cell in the same grid, so it reads as one more option rather
-            than a control bolted on. A picture chosen here is downscaled into
-            IndexedDB like any chat image — it never leaves the device. */}
-        <button
-          type="button"
-          onClick={onImportBg}
-          style={{
-            padding: "5px 8px",
-            fontSize: 10,
-            letterSpacing: 1,
-            border: `1px dashed ${bgId.startsWith("own:") ? (p.theme === "day" ? p.roseHi : p.gold) : p.ruleSoft}`,
-            background: bgId.startsWith("own:")
-              ? p.theme === "day"
-                ? "rgba(176,64,99,.08)"
-                : "rgba(230,205,150,.08)"
-              : "transparent",
-            color: bgId.startsWith("own:")
-              ? p.theme === "day"
-                ? p.roseHi
-                : p.goldHi
-              : p.inkSoft,
-            cursor: "pointer",
-            fontFamily: FONT_CN,
-            borderRadius: 4,
-            textAlign: "left",
-          }}
-        >
-          ＋ 自选
-        </button>
+      </div>
+      <div
+        style={{
+          margin: "0 1px 8px",
+          color: p.inkMute,
+          fontSize: 8,
+          letterSpacing: 0.5,
+          fontFamily: FONT_CN,
+        }}
+      >
+        点按切换 · 长按改名 · ↥ 换图
       </div>
       {bgId !== "none" && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-          <button type="button" onClick={() => onBgFit("adapt")} style={{ ...chip(bgFit === "adapt"), fontFamily: FONT_CN }}>
-            整幅
-          </button>
-          <button type="button" onClick={() => onBgFit("fill")} style={{ ...chip(bgFit === "fill"), fontFamily: FONT_CN }}>
-            铺满
-          </button>
-        </div>
+        <>
+          <div style={{ display: "flex", gap: 6, marginBottom: 9 }}>
+            <button type="button" onClick={() => onBgFit("adapt")} style={{ ...chip(bgFit === "adapt"), fontFamily: FONT_CN }}>
+              整幅
+            </button>
+            <button type="button" onClick={() => onBgFit("fill")} style={{ ...chip(bgFit === "fill"), fontFamily: FONT_CN }}>
+              铺满
+            </button>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                color: p.inkMute,
+                fontSize: 9,
+                letterSpacing: 1,
+                fontFamily: FONT_CN,
+                marginBottom: 3,
+              }}
+            >
+              <span>透明度</span>
+              <span style={{ fontFamily: FONT_LATIN, fontVariantNumeric: "tabular-nums" }}>{bgOpacity}%</span>
+            </div>
+            <div style={{ position: "relative", height: 22 }}>
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 10,
+                  height: 2,
+                  borderRadius: 999,
+                  background: p.ruleSoft,
+                  overflow: "hidden",
+                }}
+              >
+                <span
+                  style={{
+                    display: "block",
+                    width: `${bgOpacity}%`,
+                    height: "100%",
+                    background: p.theme === "day" ? p.roseHi : p.gold,
+                  }}
+                />
+              </div>
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: `${bgOpacity}%`,
+                  top: 5,
+                  width: 12,
+                  height: 12,
+                  borderRadius: 999,
+                  transform: `translateX(-${bgOpacity}%)`,
+                  background: theme === "day" ? "#FCF7EF" : "#100B07",
+                  border: `1px solid ${p.theme === "day" ? p.roseHi : p.gold}`,
+                  boxShadow: `0 0 0 2px ${theme === "day" ? "rgba(176,64,99,.08)" : "rgba(230,205,150,.08)"}`,
+                  pointerEvents: "none",
+                }}
+              />
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={bgOpacity}
+                onChange={(event) => onBgOpacity(Number(event.target.value))}
+                aria-label="背景透明度"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: 22,
+                  margin: 0,
+                  opacity: 0,
+                  cursor: "pointer",
+                }}
+              />
+            </div>
+          </div>
+        </>
       )}
 
       <div style={heading}>textvs</div>

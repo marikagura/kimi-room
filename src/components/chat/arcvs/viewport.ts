@@ -16,7 +16,66 @@
 // Pages that genuinely scroll (the history and thread lists) must not use this:
 // their scrolling is real.
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
+
+const VISUAL_HEIGHT = "--kimi-visual-height";
+const VISUAL_TOP = "--kimi-visual-top";
+const COMPOSER_BOTTOM = "--kimi-composer-bottom";
+
+export function useVisualViewport(): void {
+  useLayoutEffect(() => {
+    const html = document.documentElement;
+    const previous = {
+      height: html.style.getPropertyValue(VISUAL_HEIGHT),
+      top: html.style.getPropertyValue(VISUAL_TOP),
+      composer: html.style.getPropertyValue(COMPOSER_BOTTOM),
+    };
+    const sync = () => {
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      const top = viewport?.offsetTop ?? 0;
+      const occludedBottom = viewport
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      const active = document.activeElement;
+      const editing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+
+      html.style.setProperty(VISUAL_HEIGHT, `${Math.round(height)}px`);
+      html.style.setProperty(VISUAL_TOP, `${Math.round(top)}px`);
+      html.style.setProperty(
+        COMPOSER_BOTTOM,
+        editing && occludedBottom > 80
+          ? "8px"
+          : "max(calc(env(safe-area-inset-bottom, 0px) - 14px), 8px)",
+      );
+    };
+
+    sync();
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
+    window.visualViewport?.addEventListener("resize", sync);
+    window.visualViewport?.addEventListener("scroll", sync);
+    document.addEventListener("focusin", sync);
+    document.addEventListener("focusout", sync);
+
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
+      window.visualViewport?.removeEventListener("resize", sync);
+      window.visualViewport?.removeEventListener("scroll", sync);
+      document.removeEventListener("focusin", sync);
+      document.removeEventListener("focusout", sync);
+      for (const [name, value] of [
+        [VISUAL_HEIGHT, previous.height],
+        [VISUAL_TOP, previous.top],
+        [COMPOSER_BOTTOM, previous.composer],
+      ] as const) {
+        if (value) html.style.setProperty(name, value);
+        else html.style.removeProperty(name);
+      }
+    };
+  }, []);
+}
 
 export function useFixedViewport(): void {
   useEffect(() => {
