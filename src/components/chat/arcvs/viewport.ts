@@ -32,19 +32,26 @@ export function useVisualViewport(): void {
     };
     const sync = () => {
       const viewport = window.visualViewport;
-      const height = viewport?.height ?? window.innerHeight;
-      const top = viewport?.offsetTop ?? 0;
+      const layoutHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
       const occludedBottom = viewport
-        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        ? Math.max(0, layoutHeight - viewport.height - viewport.offsetTop)
         : 0;
       const active = document.activeElement;
       const editing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+      const keyboardOpen = Boolean(viewport && editing && occludedBottom > 80);
+
+      // Installed iOS PWAs may keep VisualViewport shorter than the app window
+      // after the keyboard has gone away. If that shorter height drives the
+      // fixed shell, html/body shows through as a same-colour bottom strip.
+      // Follow VisualViewport only while it represents a real keyboard.
+      const height = keyboardOpen && viewport ? viewport.height : layoutHeight;
+      const top = keyboardOpen && viewport ? viewport.offsetTop : 0;
 
       html.style.setProperty(VISUAL_HEIGHT, `${Math.round(height)}px`);
       html.style.setProperty(VISUAL_TOP, `${Math.round(top)}px`);
       html.style.setProperty(
         COMPOSER_BOTTOM,
-        editing && occludedBottom > 80
+        keyboardOpen
           ? "8px"
           : "max(calc(env(safe-area-inset-bottom, 0px) - 14px), 8px)",
       );

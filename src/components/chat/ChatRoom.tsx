@@ -1995,10 +1995,8 @@ export function ChatRoom() {
                 alt=""
                 style={{
                   position: "absolute",
-                  inset: -1,
-                  width: 42,
-                  height: 42,
-                  borderRadius: "50%",
+                  inset: sendArt.inset ?? -1,
+                  objectFit: "contain",
                   display: "block",
                 }}
               />
