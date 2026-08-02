@@ -138,7 +138,7 @@ export function paletteFor(theme: ChatTheme): Palette {
 export type SendArt = { src: string; ring?: "none" | "hairline"; inset?: number };
 export const SEND_ART: { day?: SendArt; night?: SendArt } = {
   night: { src: "/images/chat/send-night.png", ring: "none" },
-  day: { src: "/images/chat/send-day-bow.png", ring: "hairline", inset: 3 },
+  day: { src: "/images/chat/send-day-bow-clean.png", ring: "hairline", inset: 3 },
 };
 
 /** Latin small caps labels. Never used for Chinese — see FONT_CN. */
