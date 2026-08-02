@@ -16,7 +16,7 @@
 // Pages that genuinely scroll (the history and thread lists) must not use this:
 // their scrolling is real.
 
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 const VISUAL_HEIGHT = "--kimi-visual-height";
 const VISUAL_TOP = "--kimi-visual-top";
@@ -82,6 +82,88 @@ export function useVisualViewport(): void {
       }
     };
   }, []);
+}
+
+/** Query-gated on-device readout for iOS standalone viewport bugs. */
+export function useViewportDebug(enabled: boolean): string | null {
+  const [readout, setReadout] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    const probe = document.createElement("div");
+    probe.setAttribute("aria-hidden", "true");
+    Object.assign(probe.style, {
+      position: "fixed",
+      inset: "auto 0 0 auto",
+      width: "0",
+      height: "0",
+      paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      pointerEvents: "none",
+      visibility: "hidden",
+    });
+    document.body.appendChild(probe);
+
+    let frame = 0;
+    const n = (value: number | undefined) =>
+      typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) : "-";
+    const rect = (selector: string) => {
+      const value = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      return value ? `${n(value.top)}..${n(value.bottom)} h${n(value.height)}` : "-";
+    };
+    const update = () => {
+      frame = 0;
+      const vv = window.visualViewport;
+      const html = document.documentElement;
+      const style = getComputedStyle(html);
+      const active = document.activeElement;
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+      setReadout(
+        [
+          `mode ${standalone ? "standalone" : "browser"} focus ${active?.tagName ?? "-"}`,
+          `screen ${n(screen.width)}x${n(screen.height)} availH ${n(screen.availHeight)}`,
+          `inner ${n(window.innerWidth)}x${n(window.innerHeight)} outerH ${n(window.outerHeight)}`,
+          `client ${n(html.clientWidth)}x${n(html.clientHeight)} bodyH ${n(document.body.clientHeight)}`,
+          `vv h${n(vv?.height)} top${n(vv?.offsetTop)} pageTop${n(vv?.pageTop)} scale${n(vv?.scale)}`,
+          `safeB ${getComputedStyle(probe).paddingBottom} cssH ${style.getPropertyValue(VISUAL_HEIGHT).trim() || "-"}`,
+          `cssTop ${style.getPropertyValue(VISUAL_TOP).trim() || "-"} cssBottom ${style.getPropertyValue(COMPOSER_BOTTOM).trim() || "-"}`,
+          `main ${rect("[data-kimi-chat-root]")}`,
+          `composer ${rect("[data-kimi-composer]")}`,
+          `row ${rect("[data-kimi-composer-row]")}`,
+        ].join("\n"),
+      );
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("resize", schedule);
+    window.addEventListener("orientationchange", schedule);
+    window.visualViewport?.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("scroll", schedule);
+    document.addEventListener("focusin", schedule);
+    document.addEventListener("focusout", schedule);
+    document.addEventListener("visibilitychange", schedule);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("orientationchange", schedule);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
+      document.removeEventListener("focusin", schedule);
+      document.removeEventListener("focusout", schedule);
+      document.removeEventListener("visibilitychange", schedule);
+      probe.remove();
+    };
+  }, [enabled]);
+
+  return enabled ? readout : null;
 }
 
 export function useFixedViewport(): void {

@@ -82,7 +82,7 @@ import {
   LinkCard,
   type CostStats,
 } from "./arcvs/parts";
-import { useFixedViewport, useVisualViewport } from "./arcvs/viewport";
+import { useFixedViewport, useViewportDebug, useVisualViewport } from "./arcvs/viewport";
 import {
   BackChevron,
   FourPointStar,
@@ -433,6 +433,7 @@ export function ChatRoom() {
   // rubber-banding under it.
   useFixedViewport();
   useVisualViewport();
+  const viewportReadout = useViewportDebug(searchParams.get("viewportDebug") === "1");
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [providerTick, setProviderTick] = useState(0); // re-read the choice after a pick
   useEffect(() => {
@@ -1430,6 +1431,7 @@ export function ChatRoom() {
 
   return (
     <main
+      data-kimi-chat-root
       style={
         {
           position: "fixed",
@@ -1453,6 +1455,29 @@ export function ChatRoom() {
       }
     >
       <style>{ARCVS_KEYFRAMES}</style>
+      {viewportReadout && (
+        <pre
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            top: 8,
+            left: 8,
+            zIndex: 100,
+            margin: 0,
+            maxWidth: "calc(100vw - 16px)",
+            padding: "7px 9px",
+            border: "1px solid rgba(255,255,255,.45)",
+            borderRadius: 8,
+            background: "rgba(0,0,0,.82)",
+            color: "#fff",
+            font: "10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace",
+            whiteSpace: "pre-wrap",
+            pointerEvents: "none",
+          }}
+        >
+          {viewportReadout}
+        </pre>
+      )}
 
       {/* 环境光。画在 mood 图**之前** —— 它在这之后的话就盖在图上面, 而昼色那道
           光是 50% 0% 处几乎不透明的一团奶白, 会把整张图的上三分之一洗掉 (顶上最狠,
@@ -1797,14 +1822,15 @@ export function ChatRoom() {
 
       {/* composer */}
       <div
+        data-kimi-composer
         style={{
           position: "relative",
           zIndex: 3,
           flex: "none",
           borderTop: `1px solid ${p.rule}`,
-          background: p.chrome,
-          backdropFilter: "blur(20px) saturate(160%)",
-          WebkitBackdropFilter: "blur(20px) saturate(160%)",
+          background: bg.url && bgOpacity > 0 ? "transparent" : p.chrome,
+          backdropFilter: bg.url && bgOpacity > 0 ? "none" : "blur(20px) saturate(160%)",
+          WebkitBackdropFilter: bg.url && bgOpacity > 0 ? "none" : "blur(20px) saturate(160%)",
         }}
       >
         <ModelSwitcher
@@ -1833,6 +1859,7 @@ export function ChatRoom() {
           }}
         />
         <div
+          data-kimi-composer-row
           style={{
             display: "flex",
             // bottom-aligned so the two round keys stay put as the field grows
