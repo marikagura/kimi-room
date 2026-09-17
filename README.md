@@ -2,6 +2,9 @@
 
 # kimi-room
 
+<img width="829" height="722" alt="Screenshot 2026-09-18 at 2 41 15 AM" src="https://github.com/user-attachments/assets/e04248f5-c4f1-4961-9bcc-ea0308392b52" />
+
+
 ![license](https://img.shields.io/badge/license-AGPL%20v3-b13a5a?style=flat-square)
 ![pwa](https://img.shields.io/badge/pwa-ready-b13a5a?style=flat-square)
 ![status](https://img.shields.io/badge/status-attending-b13a5a?style=flat-square)
